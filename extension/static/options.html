@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>SaveKidsFromBrainRot — Device Setup</title>
+    <style>
+      body {
+        max-width: 480px;
+        margin: 48px auto;
+        font-family: system-ui, sans-serif;
+        color: #1c1917;
+        padding: 0 16px;
+      }
+      h1 { color: #ea580c; }
+      label { display: block; margin: 14px 0 4px; font-weight: 600; }
+      input {
+        width: 100%;
+        padding: 10px;
+        font-size: 15px;
+        border: 1px solid #d6d3d1;
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 18px;
+        padding: 10px 24px;
+        font-size: 15px;
+        border: none;
+        border-radius: 8px;
+        background: #ea580c;
+        color: white;
+        cursor: pointer;
+      }
+      button.secondary { background: #78716c; }
+      #message { margin-top: 14px; font-weight: 600; }
+      #message.error { color: #b91c1c; }
+      #message.ok { color: #15803d; }
+      .hint { color: #78716c; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>🛡️ Device setup</h1>
+    <div id="paired-view" hidden>
+      <p>This device is paired and protected. ✅</p>
+      <p class="hint">Manage everything from the family dashboard — criteria, review queue, time limits.</p>
+      <button id="unpair" class="secondary">Unpair this device</button>
+    </div>
+    <div id="setup-view" hidden>
+      <p>
+        Ask the parent to open the family dashboard → <b>Devices</b> → <b>Add device</b>, and enter
+        the details below.
+      </p>
+      <label for="backend">Family server URL</label>
+      <input id="backend" placeholder="https://skfbr-backend.YOUR-SUBDOMAIN.workers.dev" />
+      <label for="code">6-digit pairing code</label>
+      <input id="code" placeholder="123456" maxlength="6" />
+      <label for="name">Device name</label>
+      <input id="name" placeholder="Maya's laptop" />
+      <button id="pair">Pair this device</button>
+    </div>
+    <div id="message"></div>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,4 @@
+# Chrome polls updates.xml to decide whether to fetch a new CRX — never let
+# an edge/browser cache serve a stale copy, or extension rollouts lag hours.
+/plugin/*
+  Cache-Control: no-cache

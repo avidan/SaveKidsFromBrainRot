@@ -1,0 +1,10 @@
+{
+  "name": "savekidsfrombrainrot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node setup.mjs",
+    "deploy": "npm --prefix dashboard run build && npm --prefix backend run deploy"
+  }
+}

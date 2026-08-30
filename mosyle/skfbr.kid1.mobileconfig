@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>backendUrl</key>
+			<string>https://api.rosskids.com</string>
+			<key>deviceToken</key>
+			<string>REPLACE_WITH_DEVICE_TOKEN</string>
+			<key>deviceName</key>
+			<string>Kid 1 MacBook</string>
+			<key>PayloadDescription</key>
+			<string>Managed storage for the SaveKidsFromBrainRot extension (macOS reads extension policy from this dedicated preference domain, not from 3rdparty).</string>
+			<key>PayloadDisplayName</key>
+			<string>SaveKidsFromBrainRot — extension managed storage</string>
+			<key>PayloadEnabled</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>com.google.Chrome.extensions.fkegepdokopkgklbpbkphdemnbinjhoc.65FD657E-7000-4075-9C81-E8E9B6C8BF13</string>
+			<key>PayloadType</key>
+			<string>com.google.Chrome.extensions.fkegepdokopkgklbpbkphdemnbinjhoc</string>
+			<key>PayloadUUID</key>
+			<string>65FD657E-7000-4075-9C81-E8E9B6C8BF13</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>3rdparty</key>
+			<dict>
+				<key>extensions</key>
+				<dict>
+					<key>fkegepdokopkgklbpbkphdemnbinjhoc</key>
+					<dict>
+						<key>backendUrl</key>
+						<string>https://api.rosskids.com</string>
+						<key>deviceToken</key>
+						<string>REPLACE_WITH_DEVICE_TOKEN</string>
+						<key>deviceName</key>
+						<string>Kid 1 MacBook</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>BrowserSignin</key>
+			<integer>0</integer>
+			<key>DeveloperToolsAvailability</key>
+			<integer>1</integer>
+			<key>ExtensionInstallForcelist</key>
+			<array>
+				<string>fkegepdokopkgklbpbkphdemnbinjhoc;https://app.rosskids.com/plugin/updates.xml</string>
+				<string>khncfooichmfjbepaaaebmommgaepoid;https://clients2.google.com/service/update2/crx</string>
+			</array>
+			<key>ExtensionSettings</key>
+			<dict>
+				<key>*</key>
+				<dict>
+					<key>installation_mode</key>
+					<string>blocked</string>
+				</dict>
+				<key>fkegepdokopkgklbpbkphdemnbinjhoc</key>
+				<dict>
+					<key>installation_mode</key>
+					<string>force_installed</string>
+					<key>update_url</key>
+					<string>https://app.rosskids.com/plugin/updates.xml</string>
+				</dict>
+				<key>khncfooichmfjbepaaaebmommgaepoid</key>
+				<dict>
+					<key>installation_mode</key>
+					<string>force_installed</string>
+					<key>update_url</key>
+					<string>https://clients2.google.com/service/update2/crx</string>
+				</dict>
+			</dict>
+			<key>HomepageIsNewTabPage</key>
+			<false/>
+			<key>HomepageLocation</key>
+			<string>https://www.youtube.com/</string>
+			<key>IncognitoModeAvailability</key>
+			<integer>1</integer>
+			<key>PayloadDescription</key>
+			<string>Force-installs SaveKidsFromBrainRot (self-hosted AI filtering for YouTube) and Unhook (Web Store, hides YouTube distractions). All other extensions blocked. Incognito disabled, sync and browser sign-in disabled.</string>
+			<key>PayloadDisplayName</key>
+			<string>SaveKidsFromBrainRot + Unhook — Chrome policies</string>
+			<key>PayloadEnabled</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>com.google.Chrome.D9F58BDC-D525-4AF7-871A-5A9FFA99BA87</string>
+			<key>PayloadType</key>
+			<string>com.google.Chrome</string>
+			<key>PayloadUUID</key>
+			<string>D9F58BDC-D525-4AF7-871A-5A9FFA99BA87</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>SyncDisabled</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Chrome enterprise policy for kid-1: SaveKidsFromBrainRot AI filtering. Replaces the deprecated YouTube Watch Monitor profile — remove that profile when deploying this one.</string>
+	<key>PayloadDisplayName</key>
+	<string>SaveKidsFromBrainRot (kid-1)</string>
+	<key>PayloadIdentifier</key>
+	<string>com.rosskids.skfbr.44914111-32F4-4071-A16A-182EA714F401</string>
+	<key>PayloadOrganization</key>
+	<string>rosskids</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>44914111-32F4-4071-A16A-182EA714F401</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

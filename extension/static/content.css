@@ -1,0 +1,65 @@
+/* Pending evaluation: blur the item so nothing unvetted is legible. */
+.skfbr-pending {
+  filter: blur(14px) saturate(0.4);
+  pointer-events: none;
+  transition: filter 0.2s ease;
+}
+
+/* Blocked: remove from the page entirely. */
+.skfbr-blocked {
+  display: none !important;
+}
+
+/* Full-screen overlay used on watch pages (checking / blocked / time's up). */
+.skfbr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: linear-gradient(160deg, #fff7ed, #ffedd5);
+  color: #7c2d12;
+  font-family: "Comic Sans MS", "Chalkboard SE", cursive, sans-serif;
+  text-align: center;
+  padding: 32px;
+}
+.skfbr-overlay .skfbr-emoji {
+  font-size: 72px;
+}
+.skfbr-overlay h1 {
+  font-size: 32px;
+  margin: 0;
+}
+.skfbr-overlay p {
+  font-size: 18px;
+  max-width: 520px;
+  margin: 0;
+}
+.skfbr-overlay button {
+  font-size: 18px;
+  font-family: inherit;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 999px;
+  background: #fb923c;
+  color: white;
+  cursor: pointer;
+}
+.skfbr-overlay button:disabled {
+  background: #d6d3d1;
+  cursor: default;
+}
+.skfbr-overlay .skfbr-spinner {
+  width: 44px;
+  height: 44px;
+  border: 5px solid #fdba74;
+  border-top-color: #ea580c;
+  border-radius: 50%;
+  animation: skfbr-spin 0.9s linear infinite;
+}
+@keyframes skfbr-spin {
+  to { transform: rotate(360deg); }
+}

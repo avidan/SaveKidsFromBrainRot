@@ -1,0 +1,20 @@
+{
+  "name": "skfbr-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy",
+    "db:apply": "npx wrangler d1 execute skfbr --remote --file=./schema.sql",
+    "db:apply:local": "npx wrangler d1 execute skfbr --local --file=./schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260101.0",
+    "typescript": "^5.6.0"
+  }
+}

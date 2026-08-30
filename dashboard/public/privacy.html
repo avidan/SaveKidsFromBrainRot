@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SaveKidsFromBrainRot — Privacy Policy</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 0 auto;
+         padding: 48px 20px 80px; color: #292524; background: #fffbf5; line-height: 1.6; }
+  h1 { color: #ea580c; font-size: 28px; }
+  h2 { font-size: 18px; margin-top: 32px; }
+  code { background: #ffedd5; padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  .updated { color: #78716c; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>🛡️ SaveKidsFromBrainRot — Privacy Policy</h1>
+<p class="updated">Last updated: August 2026</p>
+
+<p>SaveKidsFromBrainRot is an open-source, <b>self-hosted</b> parental-control
+system for YouTube. Each family runs its own server; there is no central
+service and no company collecting your data. This policy describes what the
+browser extension does with data on the devices where a parent installs it.</p>
+
+<h2>What the extension collects</h2>
+<p>On YouTube pages only, the extension reads video and channel information
+(titles, channel names, video IDs, thumbnails) and records viewing events:
+videos watched, videos blocked, "ask my grown-up" requests, and time spent
+watching. It does not read pages on any other site, does not capture keystrokes,
+passwords, or form input, and does not access the camera or microphone.</p>
+
+<h2>Where the data goes</h2>
+<p>All data is sent to <b>one place</b>: the server the parent paired the
+device with — a server the family deploys and controls (typically on their own
+Cloudflare account). Nothing is sent anywhere else by the extension. Before a
+device is paired, the extension transmits nothing at all.</p>
+
+<h2>AI evaluation</h2>
+<p>To judge content against the family's rules, the family's server sends
+video/channel <i>metadata</i> (titles, descriptions, thumbnails, and sometimes
+transcript excerpts — all public YouTube data) to Anthropic's Claude API using
+the family's own API key, subject to
+<a href="https://www.anthropic.com/legal/privacy">Anthropic's privacy policy</a>.
+No information about the child (name, account, identity) is included in these
+requests.</p>
+
+<h2>What is never done with your data</h2>
+<ul>
+  <li>Never sold or shared with third parties.</li>
+  <li>Never used for advertising, analytics, or profiling.</li>
+  <li>Never used for any purpose other than enforcing the family's own rules
+      and showing parents their family's activity.</li>
+</ul>
+
+<h2>Retention and deletion</h2>
+<p>Activity data lives in the family's own database and is retained until the
+family deletes it. Deleting the server (or revoking a device from the
+dashboard) ends all collection. Local caches on the device are removed by
+uninstalling the extension.</p>
+
+<h2>Children's data</h2>
+<p>The system is operated by parents/guardians for their own children on
+devices they own. The data collected (viewing activity) is visible only to the
+family operating the server.</p>
+
+<h2>Contact</h2>
+<p>Questions or issues: open an issue at
+<a href="https://github.com/avidan/SaveKidsFromBrainRot">github.com/avidan/SaveKidsFromBrainRot</a>.</p>
+</body>
+</html>

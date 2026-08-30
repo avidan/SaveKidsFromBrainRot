@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "properties": {
+    "backendUrl": {
+      "type": "string",
+      "description": "SaveKidsFromBrainRot backend URL, e.g. https://api.rosskids.com"
+    },
+    "deviceToken": {
+      "type": "string",
+      "description": "Pre-provisioned device token minted via POST /pair"
+    },
+    "deviceName": {
+      "type": "string",
+      "description": "Human-readable device name shown in the dashboard"
+    }
+  }
+}
