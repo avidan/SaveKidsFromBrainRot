@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>backendUrl</key>
-			<string>https://api.rosskids.com</string>
+			<string>REPLACE_WITH_BACKEND_URL</string>
 			<key>deviceToken</key>
 			<string>REPLACE_WITH_DEVICE_TOKEN</string>
 			<key>deviceName</key>
@@ -34,7 +34,7 @@
 					<key>fkegepdokopkgklbpbkphdemnbinjhoc</key>
 					<dict>
 						<key>backendUrl</key>
-						<string>https://api.rosskids.com</string>
+						<string>REPLACE_WITH_BACKEND_URL</string>
 						<key>deviceToken</key>
 						<string>REPLACE_WITH_DEVICE_TOKEN</string>
 						<key>deviceName</key>
@@ -48,7 +48,7 @@
 			<integer>1</integer>
 			<key>ExtensionInstallForcelist</key>
 			<array>
-				<string>fkegepdokopkgklbpbkphdemnbinjhoc;https://app.rosskids.com/plugin/updates.xml</string>
+				<string>fkegepdokopkgklbpbkphdemnbinjhoc;https://clients2.google.com/service/update2/crx</string>
 				<string>khncfooichmfjbepaaaebmommgaepoid;https://clients2.google.com/service/update2/crx</string>
 			</array>
 			<key>ExtensionSettings</key>
@@ -63,7 +63,7 @@
 					<key>installation_mode</key>
 					<string>force_installed</string>
 					<key>update_url</key>
-					<string>https://app.rosskids.com/plugin/updates.xml</string>
+					<string>https://clients2.google.com/service/update2/crx</string>
 				</dict>
 				<key>khncfooichmfjbepaaaebmommgaepoid</key>
 				<dict>
@@ -102,9 +102,9 @@
 	<key>PayloadDisplayName</key>
 	<string>SaveKidsFromBrainRot (kid-1)</string>
 	<key>PayloadIdentifier</key>
-	<string>com.rosskids.skfbr.44914111-32F4-4071-A16A-182EA714F401</string>
+	<string>com.savekidsfrombrainrot.44914111-32F4-4071-A16A-182EA714F401</string>
 	<key>PayloadOrganization</key>
-	<string>rosskids</string>
+	<string>savekidsfrombrainrot</string>
 	<key>PayloadScope</key>
 	<string>System</string>
 	<key>PayloadType</key>

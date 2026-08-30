@@ -41,16 +41,18 @@ great."*
 > **Kid on a Mac?** Skip this section and step 3: in your dashboard's
 > **Devices** tab, click **Download Mac setup profile**, install that file on
 > the kid's Mac (System Settings → Privacy & Security → Profiles), and restart
-> Chrome. That force-installs the extension, pairs it automatically, and
-> disables incognito/guest mode so it can't be bypassed. No MDM needed.
+> Chrome. That force-installs the extension from the Chrome Web Store, pairs
+> it automatically, and disables incognito/guest mode so it can't be bypassed.
+> No MDM needed.
 
-> A Chrome Web Store listing is coming, which will make this a one-click
-> install. Until then, load it manually:
+On the kid's computer, install it from the Chrome Web Store:
 
-1. On your machine: `cd extension && npm install && npm run build` — then copy
-   the `extension/dist/` folder to the kid's computer (AirDrop, USB, whatever).
-2. On the kid's computer, in Chrome: `chrome://extensions` → toggle
-   **Developer mode** (top right) → **Load unpacked** → select the `dist` folder.
+**https://chromewebstore.google.com/detail/fkegepdokopkgklbpbkphdemnbinjhoc**
+
+(The listing is unlisted — link-only, it won't show up in store search. If the
+link ever 404s, a store review is in progress; as a stopgap you can
+`cd extension && npm install && npm run build` and load `extension/dist/` via
+chrome://extensions → Developer mode → Load unpacked.)
 
 ## 3. Pair the device
 

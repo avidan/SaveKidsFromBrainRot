@@ -1,39 +1,40 @@
-# Deploying SaveKidsFromBrainRot via Mosyle
+# Deploying SaveKidsFromBrainRot via MDM (Mosyle etc.)
 
-The extension is force-installed through Chrome enterprise policy using the private-host
-method: a signed `.crx` and `updates.xml` served from the family dashboard's static
-hosting at `https://app.rosskids.com/plugin/`.
+> No MDM? You don't need this folder — the dashboard's **Devices → Download Mac
+> setup profile** button generates a ready-to-install profile per device.
 
-- **Extension ID:** `fkegepdokopkgklbpbkphdemnbinjhoc` (derived from the signing key —
-  keep `skfbr-signing-key.pem` safe and out of git; every future release must be packed
-  with the same key or the ID changes and force-install breaks).
-- **Managed config:** the profile's `3rdparty.extensions.<id>` block feeds
-  `chrome.storage.managed`. The extension auto-pairs from it at install — no on-device
-  setup. Keys: `backendUrl`, `deviceToken`, `deviceName`.
+The extension is force-installed through Chrome enterprise policy from the
+**Chrome Web Store** (unlisted listing):
+
+- **Extension ID:** `fkegepdokopkgklbpbkphdemnbinjhoc`
+- **Update URL:** `https://clients2.google.com/service/update2/crx` (Google's
+  standard store feed — updates arrive automatically when a new version passes
+  store review).
+- **Managed config:** on macOS, Chrome reads extension managed storage from the
+  dedicated preference domain `com.google.Chrome.extensions.<id>` (NOT the
+  `3rdparty` key — that's Windows/ChromeOS). That payload feeds
+  `chrome.storage.managed`; the extension auto-pairs from it at install with
+  keys `backendUrl`, `deviceToken`, `deviceName`.
+
+Use `skfbr.kid1.mobileconfig` as the template.
 
 ## Per-device provisioning
 
 Each kid device gets its own `deviceToken`:
 
-1. Dashboard → **Devices** → generate a pairing code (name it after the device).
-2. Redeem the code yourself (within 15 minutes):
-   ```bash
-   curl -sX POST https://api.rosskids.com/pair \
-     -H 'content-type: application/json' \
-     -d '{"code":"123456","deviceName":"Kid 1 MacBook"}'
-   ```
-3. Copy `deviceToken` from the response into the device's mobileconfig
-   (`REPLACE_WITH_DEVICE_TOKEN`), and set `deviceName`.
-4. For a second kid: duplicate the mobileconfig, mint a new token, regenerate the
-   `PayloadUUID`s/identifiers so the profiles don't collide.
+1. Dashboard → **Devices** → **Mint MDM device token** (name it after the device).
+2. Copy the token into the device's mobileconfig (`REPLACE_WITH_DEVICE_TOKEN`),
+   set `deviceName` and `REPLACE_WITH_BACKEND_URL` (your dashboard URL).
+3. For each additional device: duplicate the mobileconfig, mint a new token, and
+   regenerate the `PayloadUUID`s/identifiers so the profiles don't collide.
 
 ## Pushing via Mosyle
 
 Management → **Custom Profiles** → upload the `.mobileconfig` → target the kid's Mac.
 Keep exactly one `com.google.Chrome` payload per device: **remove any older Chrome
-policy profiles** (e.g. the deprecated "YouTube Watch Monitor" profile) when deploying
-this one — duplicate Chrome payloads have undefined precedence. This profile blocks all
-other extensions and force-installs only SaveKidsFromBrainRot.
+policy profiles** when deploying this one — duplicate Chrome payloads have undefined
+precedence. The template blocks all other extensions and force-installs only
+SaveKidsFromBrainRot (plus Unhook, if you keep that entry).
 
 ## Verify on the device
 
@@ -42,14 +43,12 @@ other extensions and force-installs only SaveKidsFromBrainRot.
 3. The extension popup shows "Protecting …" without anyone typing anything.
 4. The device appears in the dashboard's Devices tab with a recent "last seen".
 
-## Releasing extension updates
+## Legacy: self-hosted CRX feed
 
-1. Bump `version` in `extension/static/manifest.json`.
-2. `npm run build`, then repack with the SAME key:
-   ```bash
-   npx crx3 dist -p skfbr-signing-key.pem -o skfbr.crx -x updates.xml \
-     --crxURL https://app.rosskids.com/plugin/skfbr.crx
-   ```
-3. Copy `skfbr.crx` + `updates.xml` into `dashboard/public/plugin/` and redeploy the
-   dashboard (Cloudflare Pages). Chrome picks up the new version within a few hours,
-   or immediately via `chrome://extensions` → Update.
+Before the store listing existed, devices were provisioned against a signed CRX
+served from the dashboard's `/plugin/` path (packed with `skfbr-signing-key.pem`
+— same extension ID, since the store item was created from the same key).
+Profiles pointing at `<dashboard>/plugin/updates.xml` keep working, but new
+profiles should use the store feed above, and old profiles can be switched over
+whenever convenient. Once no devices use the legacy feed, the `/plugin/` hosting
+and CRX packing (`npx crx3 …`) can be retired entirely.

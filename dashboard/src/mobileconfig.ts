@@ -10,6 +10,11 @@
 
 export const EXTENSION_ID = 'fkegepdokopkgklbpbkphdemnbinjhoc';
 
+// The extension is published on the Chrome Web Store (same ID as the earlier
+// self-hosted CRX), so force-installs pull from Google's update feed — no
+// per-family CRX hosting involved.
+const UPDATE_URL = 'https://clients2.google.com/service/update2/crx';
+
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -24,7 +29,7 @@ export function buildMobileconfig(opts: {
   deviceToken: string;
 }): string {
   const backend = opts.backendUrl.replace(/\/$/, '');
-  const updateUrl = `${backend}/plugin/updates.xml`;
+  const updateUrl = UPDATE_URL;
   const name = esc(opts.deviceName);
   const storageUuid = uuid();
   const chromeUuid = uuid();

@@ -64,15 +64,15 @@ generate a pairing code under **Devices**.
 
 ### 3. Install the extension on the kid's laptop (one time)
 
-```bash
-cd extension
-npm install
-npm run build
-```
+Install from the Chrome Web Store (unlisted — link-only):
 
-Load `extension/dist/` via `chrome://extensions` → Developer mode → **Load unpacked**. Open
-the extension's options page, enter your backend URL + pairing code. Done — everything else
-is administered from the dashboard.
+**https://chromewebstore.google.com/detail/fkegepdokopkgklbpbkphdemnbinjhoc**
+
+Open the extension's options page, enter your backend URL + pairing code. Done —
+everything else is administered from the dashboard. On a Mac, the dashboard's
+**Devices → Download Mac setup profile** button does all of this in one step and
+locks it down (force-install, no incognito). Developers can still `npm run build`
+in `extension/` and load `dist/` unpacked.
 
 ## Notifications (optional)
 
