@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SaveKidsFromBrainRot",
   "description": "AI-powered YouTube filtering: parents write criteria in plain language; channels and videos are judged against them.",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwT86HSxYOBHW1qnS5mvLuuU6lXLwVjkdiRjkpkDcty5oAuxi13HqtccWnUad2iV43tiiTLQrcTyjynofwfPmNx3MO5CLLDURw+OBgk6ghl58oaeOEaq3fgQdMBoYBuQzb92eZ2iJ71FN36OvLzbNyTcXYxag//bcgt5uWJdIhw5oNNZjBTkP4xJJ/oHggWGjx61hSELvAxOqiHtuBAE7BqDY3IHNOpPYEUCzX2rJN7VoCj5+IVmkgi//KJd7doXfwD1YQxWXSatZdM8JAs7LDfvaK33gMBekDTRP+PgzE2GcekjYvemjk5eEGb3Bghm9MAOsZTxktDrABpirPMjMWwIDAQAB",
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "permissions": ["storage", "alarms"],

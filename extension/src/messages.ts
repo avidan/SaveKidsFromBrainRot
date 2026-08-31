@@ -32,6 +32,8 @@ export interface HeartbeatResponse {
   remainingSeconds: number | null;
   /** Epoch ms until which all viewing is paused by a parent, or null. */
   pausedUntil: number | null;
+  /** Which criteria mode is in force ('week' | 'weekend') — content re-filters when it flips. */
+  activeMode: 'week' | 'weekend';
 }
 
 export interface PairResult {

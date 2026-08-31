@@ -32,6 +32,11 @@ const deniedVideos = new Set<string>();
 let pausedUntil: number | null = null;
 let pauseShown = false;
 
+// Criteria mode currently filtering this page. When the weekly schedule flips
+// it (week ↔ weekend), everything on screen was judged by the old rules — so
+// filtering resets and re-runs against the mode-scoped caches.
+let currentMode: 'week' | 'weekend' = 'week';
+
 // Embedded player on a third-party site (or youtube-nocookie): minimal gate mode.
 const IS_EMBED = location.pathname.startsWith('/embed/');
 
@@ -442,6 +447,33 @@ async function gateEmbed(): Promise<void> {
   }
 }
 
+// ---------- mode flips ----------
+
+/** Wipe all filtering state and re-judge the page under the new mode. */
+function resetFiltering(): void {
+  channelVerdicts.clear();
+  pendingChannels.clear();
+  elementsByChannel.clear();
+  if (evaluateTimer !== null) {
+    clearTimeout(evaluateTimer);
+    evaluateTimer = null;
+  }
+  allowedVideos.clear();
+  deniedVideos.clear();
+  for (const el of document.querySelectorAll<HTMLElement>('[data-skfbr]')) {
+    delete el.dataset.skfbr;
+    el.classList.remove('skfbr-blocked', 'skfbr-pending');
+  }
+  currentVideoId = null;
+  if (IS_EMBED) {
+    void gateEmbed();
+    return;
+  }
+  onNavigate(); // re-gate the watch page if we're on one
+  for (const el of document.querySelectorAll<HTMLElement>(ITEM_SELECTOR)) processFeedItem(el);
+  hideShortsShelves();
+}
+
 // ---------- parent pause ----------
 
 function pauseActive(): boolean {
@@ -612,6 +644,10 @@ function startHeartbeat(): void {
       const resp = await send<HeartbeatResponse>({ type: 'HEARTBEAT', playing });
       pausedUntil = resp.pausedUntil;
       reconcilePause();
+      if (resp.activeMode && resp.activeMode !== currentMode) {
+        currentMode = resp.activeMode;
+        resetFiltering();
+      }
       if (resp.remainingSeconds !== null && resp.remainingSeconds <= 0 && !timeUp) {
         timeUp = true;
         holdPlayback();
@@ -682,6 +718,8 @@ async function init(): Promise<void> {
 
   if (state.remainingSeconds !== null && state.remainingSeconds <= 0) timeUp = true;
   pausedUntil = state.policy?.pausedUntil ?? null;
+  currentMode =
+    state.policy?.weekendCriteria?.trim() && state.policy.activeMode === 'weekend' ? 'weekend' : 'week';
 
   if (IS_EMBED) {
     if (state.policy?.settings.filterEmbeds === false) return;

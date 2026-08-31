@@ -38,16 +38,39 @@ export interface NotificationSettings {
   onAiFlag: boolean; // notify when the AI blocks or is unsure about something new
 }
 
+/**
+ * Which criteria set is in force. 'week' is the default (and the only mode when
+ * the schedule is disabled); 'weekend' applies inside the configured weekly
+ * window. Verdict caches are scoped per mode, so switching costs nothing.
+ */
+export type CriteriaMode = 'week' | 'weekend';
+
+export interface ScheduleSettings {
+  /** When false, the week criteria apply all the time. */
+  enabled: boolean;
+  /** IANA timezone the weekly window is evaluated in, e.g. "America/Los_Angeles". */
+  timezone: string;
+  /** Weekly window start: 0=Sunday … 6=Saturday, time "HH:MM" (24h). */
+  weekendStartDay: number;
+  weekendStartTime: string;
+  /** Weekly window end (exclusive), wrapping across the week boundary if needed. */
+  weekendEndDay: number;
+  weekendEndTime: string;
+}
+
 export interface Settings {
   model: string;
   failMode: 'open' | 'closed'; // what to do when backend/AI is unreachable
   channelTtlDays: number; // re-evaluate channels after this many days
   checkAllowedChannels: boolean; // run lightweight video checks even on allowed channels
   dailyLimitMinutes: number | null; // null = no timer
+  /** Separate daily limit while weekend rules are active; null = same as dailyLimitMinutes. */
+  weekendDailyLimitMinutes: number | null;
   blockShorts: boolean;
   /** Gate YouTube players embedded on other websites, not just youtube.com. */
   filterEmbeds: boolean;
   notifications: NotificationSettings;
+  schedule: ScheduleSettings;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,9 +79,18 @@ export const DEFAULT_SETTINGS: Settings = {
   channelTtlDays: 30,
   checkAllowedChannels: true,
   dailyLimitMinutes: null,
+  weekendDailyLimitMinutes: null,
   blockShorts: true,
   filterEmbeds: true,
   notifications: { ntfyTopic: null, email: null, onKidRequest: true, onAiFlag: false },
+  schedule: {
+    enabled: false,
+    timezone: 'America/Los_Angeles',
+    weekendStartDay: 5, // Friday
+    weekendStartTime: '12:00',
+    weekendEndDay: 1, // Monday
+    weekendEndTime: '00:00',
+  },
 };
 
 /** Models offered in the dashboard dropdown. */
@@ -78,6 +110,10 @@ export interface Override {
 
 export interface Policy {
   criteria: string;
+  /** Criteria in force during the weekend window; empty = same rules all week. */
+  weekendCriteria: string;
+  /** Computed server-side at response time from settings.schedule. */
+  activeMode: CriteriaMode;
   settings: Settings;
   overrides: Override[];
   /** Epoch ms until which ALL YouTube viewing is paused, or null when not paused. */
@@ -167,6 +203,7 @@ export interface ExportBundle {
   version: 1;
   exportedAt: number;
   criteria: string;
+  weekendCriteria?: string;
   settings: Settings;
   overrides: Override[];
 }
@@ -178,4 +215,6 @@ export interface TestResponse {
   kind: 'channel' | 'video';
   extracted: ChannelMeta | VideoMeta;
   verdict: Verdict;
+  /** Which criteria set the test was judged against. */
+  mode?: CriteriaMode;
 }

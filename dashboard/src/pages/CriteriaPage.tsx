@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ExportBundle, NotificationSettings, Settings, TestResponse } from '../../../shared/types';
+import type { CriteriaMode, ExportBundle, NotificationSettings, ScheduleSettings, Settings, TestResponse } from '../../../shared/types';
 import { DEFAULT_SETTINGS, MODEL_CHOICES } from '../../../shared/types';
 import { api } from '../api';
 
@@ -7,8 +7,25 @@ const EXAMPLE = `Allow educational content, science experiments, LEGO builds, ca
 
 Block gaming rage content, "brainrot"/skibidi-style content, prank channels, unboxing/haul videos, anything with rapid-fire jump cuts engineered for retention, and content with scary or violent themes.`;
 
+const WEEKEND_EXAMPLE = `Same as the week rules, but gaming videos are fine (still no rage/shouty commentary), and one movie-length video is okay.
+
+Leave this empty to use the week rules all the time.`;
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+function timezones(): string[] {
+  try {
+    return Intl.supportedValuesOf('timeZone');
+  } catch {
+    return ['America/Los_Angeles', 'America/New_York', 'America/Chicago', 'America/Denver', 'UTC'];
+  }
+}
+
 export default function CriteriaPage() {
   const [criteria, setCriteria] = useState('');
+  const [weekendCriteria, setWeekendCriteria] = useState('');
+  const [editingMode, setEditingMode] = useState<CriteriaMode>('week');
+  const [activeMode, setActiveMode] = useState<CriteriaMode>('week');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
   const [msg, setMsg] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
@@ -24,13 +41,22 @@ export default function CriteriaPage() {
   const notif: NotificationSettings = settings.notifications ?? DEFAULT_SETTINGS.notifications;
   const setNotif = (patch: Partial<NotificationSettings>) =>
     setSettings({ ...settings, notifications: { ...notif, ...patch } });
+  const sched: ScheduleSettings = settings.schedule ?? DEFAULT_SETTINGS.schedule;
+  const setSched = (patch: Partial<ScheduleSettings>) =>
+    setSettings({ ...settings, schedule: { ...sched, ...patch } });
 
   useEffect(() => {
     void api
       .getPolicy()
       .then((p) => {
         setCriteria(p.criteria);
-        setSettings({ ...DEFAULT_SETTINGS, ...p.settings });
+        setWeekendCriteria(p.weekendCriteria ?? '');
+        setActiveMode(p.activeMode ?? 'week');
+        setSettings({
+          ...DEFAULT_SETTINGS,
+          ...p.settings,
+          schedule: { ...DEFAULT_SETTINGS.schedule, ...(p.settings.schedule ?? {}) },
+        });
         setLoaded(true);
       })
       .catch(() => setMsg({ text: 'Could not load policy', kind: 'error' }));
@@ -40,9 +66,10 @@ export default function CriteriaPage() {
     setSaving(true);
     setMsg(null);
     try {
-      await api.putPolicy(criteria, settings);
+      const p = await api.putPolicy(criteria, weekendCriteria, settings);
+      setActiveMode(p.activeMode ?? 'week');
       setMsg({
-        text: 'Saved. Existing AI verdicts were reset so everything is re-judged against the new rules.',
+        text: 'Saved. AI verdicts were reset only for the rule set you changed — the other stays cached.',
         kind: 'ok',
       });
     } catch (e) {
@@ -73,7 +100,13 @@ export default function CriteriaPage() {
       const bundle = JSON.parse(await file.text()) as ExportBundle;
       const policy = await api.importBundle(bundle);
       setCriteria(policy.criteria);
-      setSettings({ ...DEFAULT_SETTINGS, ...policy.settings });
+      setWeekendCriteria(policy.weekendCriteria ?? '');
+      setActiveMode(policy.activeMode ?? 'week');
+      setSettings({
+        ...DEFAULT_SETTINGS,
+        ...policy.settings,
+        schedule: { ...DEFAULT_SETTINGS.schedule, ...(policy.settings.schedule ?? {}) },
+      });
       setBackupMsg({ text: 'Imported! Rules, settings, and pinned decisions were replaced.', kind: 'ok' });
     } catch (e) {
       setBackupMsg({ text: e instanceof Error ? e.message : 'Import failed', kind: 'error' });
@@ -96,17 +129,48 @@ export default function CriteriaPage() {
   return (
     <>
       <div className="card">
-        <h2>Your family's rules</h2>
+        <h2>
+          Your family's rules{' '}
+          {weekendCriteria.trim() !== '' && (
+            <span className={`pill ${activeMode === 'weekend' ? 'allow' : ''}`} style={{ fontSize: 12 }}>
+              {activeMode === 'weekend' ? '🎉 weekend rules active now' : '📚 week rules active now'}
+            </span>
+          )}
+        </h2>
         <p className="sub">
           Written in plain language. The AI judges every channel and video your kid encounters
-          against exactly this text.
+          against exactly this text. Weekend rules (optional) take over during the window set in
+          the schedule below.
         </p>
-        <textarea
-          value={criteria}
-          onChange={(e) => setCriteria(e.target.value)}
-          placeholder={EXAMPLE}
-          disabled={!loaded}
-        />
+        <div className="toolbar" style={{ marginBottom: 8 }}>
+          <button
+            className={editingMode === 'week' ? 'primary' : ''}
+            onClick={() => setEditingMode('week')}
+          >
+            📚 Week rules
+          </button>
+          <button
+            className={editingMode === 'weekend' ? 'primary' : ''}
+            onClick={() => setEditingMode('weekend')}
+          >
+            🎉 Weekend rules{weekendCriteria.trim() === '' ? ' (off)' : ''}
+          </button>
+        </div>
+        {editingMode === 'week' ? (
+          <textarea
+            value={criteria}
+            onChange={(e) => setCriteria(e.target.value)}
+            placeholder={EXAMPLE}
+            disabled={!loaded}
+          />
+        ) : (
+          <textarea
+            value={weekendCriteria}
+            onChange={(e) => setWeekendCriteria(e.target.value)}
+            placeholder={WEEKEND_EXAMPLE}
+            disabled={!loaded}
+          />
+        )}
         <div className="settings-grid">
           <div>
             <label>Daily time limit (minutes, blank = none)</label>
@@ -191,6 +255,92 @@ export default function CriteriaPage() {
           {saving ? 'Saving…' : 'Save rules'}
         </button>
         {msg && <div className={`msg ${msg.kind}`}>{msg.text}</div>}
+      </div>
+
+      <div className="card">
+        <h2>Weekly schedule</h2>
+        <p className="sub">
+          When should the weekend rules apply? Times are in your family's timezone. Devices switch
+          within about a minute — and nothing is re-evaluated at the boundary, both rule sets keep
+          their own verdict cache. Weekend rules must be non-empty (tab above) to take effect.
+        </p>
+        <div className="checkbox-row">
+          <input
+            id="schedEnabled"
+            type="checkbox"
+            checked={sched.enabled}
+            onChange={(e) => setSched({ enabled: e.target.checked })}
+          />
+          <label htmlFor="schedEnabled" style={{ margin: 0 }}>
+            Use different rules on a weekly schedule
+          </label>
+        </div>
+        {sched.enabled && (
+          <div className="settings-grid">
+            <div>
+              <label>Weekend starts</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <select
+                  value={sched.weekendStartDay}
+                  onChange={(e) => setSched({ weekendStartDay: Number(e.target.value) })}
+                >
+                  {DAYS.map((d, i) => (
+                    <option key={d} value={i}>{d}</option>
+                  ))}
+                </select>
+                <input
+                  type="time"
+                  value={sched.weekendStartTime}
+                  onChange={(e) => setSched({ weekendStartTime: e.target.value || '12:00' })}
+                />
+              </div>
+            </div>
+            <div>
+              <label>Weekend ends</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <select
+                  value={sched.weekendEndDay}
+                  onChange={(e) => setSched({ weekendEndDay: Number(e.target.value) })}
+                >
+                  {DAYS.map((d, i) => (
+                    <option key={d} value={i}>{d}</option>
+                  ))}
+                </select>
+                <input
+                  type="time"
+                  value={sched.weekendEndTime}
+                  onChange={(e) => setSched({ weekendEndTime: e.target.value || '00:00' })}
+                />
+              </div>
+            </div>
+            <div>
+              <label>Timezone</label>
+              <select value={sched.timezone} onChange={(e) => setSched({ timezone: e.target.value })}>
+                {timezones().map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>Weekend daily limit (minutes, blank = same as week)</label>
+              <input
+                type="number"
+                min={0}
+                value={settings.weekendDailyLimitMinutes ?? ''}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    weekendDailyLimitMinutes:
+                      e.target.value === '' ? null : Math.max(0, Number(e.target.value)),
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+        <p className="sub" style={{ marginTop: 10 }}>
+          Saved together with your rules via the button above.
+        </p>
       </div>
 
       <div className="card">
@@ -292,6 +442,9 @@ export default function CriteriaPage() {
               </div>
               <div className="detail">
                 {testResult.verdict.reason} · confidence {Math.round(testResult.verdict.confidence * 100)}%
+                {testResult.mode && weekendCriteria.trim() !== '' && (
+                  <> · judged with {testResult.mode === 'weekend' ? 'weekend' : 'week'} rules</>
+                )}
               </div>
             </div>
           </div>

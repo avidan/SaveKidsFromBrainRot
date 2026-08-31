@@ -66,8 +66,11 @@ export const api = {
     request<{ ok: true }>('/auth/reset', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) }),
 
   getPolicy: () => request<Policy>('/dashboard/policy'),
-  putPolicy: (criteria: string, settings: Settings) =>
-    request<Policy>('/dashboard/policy', { method: 'PUT', body: JSON.stringify({ criteria, settings }) }),
+  putPolicy: (criteria: string, weekendCriteria: string, settings: Settings) =>
+    request<Policy>('/dashboard/policy', {
+      method: 'PUT',
+      body: JSON.stringify({ criteria, weekendCriteria, settings }),
+    }),
 
   pause: (minutes: number) =>
     request<{ pausedUntil: number }>('/dashboard/pause', { method: 'POST', body: JSON.stringify({ minutes }) }),

@@ -38,10 +38,13 @@ const TOOLS = [
   {
     name: 'update_criteria',
     description:
-      "Replace the family's plain-language filtering criteria. This clears all cached AI verdicts so every channel and video is re-judged against the new rules. Confirm with the parent before calling.",
+      "Replace the family's plain-language filtering criteria for one mode: 'week' (the default rules) or 'weekend' (in force during the configured weekend window; set to an empty string to use the week rules all week). Clears that mode's cached AI verdicts so its content is re-judged. Confirm with the parent before calling.",
     inputSchema: {
       type: 'object',
-      properties: { criteria: { type: 'string', description: 'The full new criteria text' } },
+      properties: {
+        criteria: { type: 'string', description: 'The full new criteria text' },
+        mode: { type: 'string', enum: ['week', 'weekend'], description: "Which criteria set to replace (default 'week')" },
+      },
       required: ['criteria'],
       additionalProperties: false,
     },
@@ -136,7 +139,12 @@ async function callTool(env: Env, familyId: string, name: string, args: Record<s
     case 'get_policy':
       return getPolicy(env, familyId);
     case 'update_criteria':
-      return updateCriteria(env, familyId, String(args.criteria ?? ''));
+      return updateCriteria(
+        env,
+        familyId,
+        String(args.criteria ?? ''),
+        args.mode === 'weekend' ? 'weekend' : 'week',
+      );
     case 'list_review_queue':
       return listReview(env, familyId);
     case 'resolve_review': {

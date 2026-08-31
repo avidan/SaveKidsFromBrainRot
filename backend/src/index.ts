@@ -34,6 +34,7 @@ import {
 import { evaluateChannels, evaluateVideo } from './claude';
 import type { AppContext } from './env';
 import { handleMcpRequest } from './mcp';
+import { activeMode, criteriaFor, effectiveMode } from './mode';
 import { notifyParent, sendDirect, shouldNotify } from './notify';
 import * as service from './service';
 import { fetchChannelMetaServer, fetchVideoMetaServer, parseYouTubeUrl } from './yt';
@@ -60,16 +61,24 @@ function bearer(header: string | undefined): string | null {
 
 async function loadPolicy(db: D1Database, familyId: string): Promise<Policy> {
   const row = await db
-    .prepare('SELECT criteria, settings_json, paused_until, updated_at FROM policies WHERE family_id = ?')
+    .prepare('SELECT criteria, weekend_criteria, settings_json, paused_until, updated_at FROM policies WHERE family_id = ?')
     .bind(familyId)
-    .first<{ criteria: string; settings_json: string; paused_until: number | null; updated_at: number }>();
+    .first<{ criteria: string; weekend_criteria: string; settings_json: string; paused_until: number | null; updated_at: number }>();
   const overrides = await db
     .prepare('SELECT kind, target_id, decision, note, created_at FROM overrides WHERE family_id = ?')
     .bind(familyId)
     .all<{ kind: string; target_id: string; decision: string; note: string | null; created_at: number }>();
-  const settings: Settings = { ...DEFAULT_SETTINGS, ...(row ? JSON.parse(row.settings_json) : {}) };
+  const parsed = row ? JSON.parse(row.settings_json) : {};
+  const settings: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...parsed,
+    schedule: { ...DEFAULT_SETTINGS.schedule, ...(parsed.schedule ?? {}) },
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...(parsed.notifications ?? {}) },
+  };
   return {
     criteria: row?.criteria ?? '',
+    weekendCriteria: row?.weekend_criteria ?? '',
+    activeMode: activeMode(settings),
     settings,
     overrides: overrides.results.map((o) => ({
       kind: o.kind as Override['kind'],
@@ -310,6 +319,7 @@ app.post('/evaluate/channels', async (c) => {
   if (channels.length === 0) return c.json({ verdicts: {} } satisfies EvaluateChannelsResponse);
 
   const policy = await loadPolicy(db, familyId);
+  const mode = effectiveMode(policy); // verdicts are cached per criteria mode
   const ttlMs = policy.settings.channelTtlDays * 24 * 60 * 60 * 1000;
   const verdicts: Record<string, Verdict> = {};
   const misses: ChannelMeta[] = [];
@@ -327,8 +337,8 @@ app.post('/evaluate/channels', async (c) => {
       continue;
     }
     const cached = await db
-      .prepare('SELECT decision, confidence, reason, evaluated_at FROM channel_verdicts WHERE family_id = ? AND channel_id = ?')
-      .bind(familyId, ch.channelId)
+      .prepare('SELECT decision, confidence, reason, evaluated_at FROM channel_verdicts WHERE family_id = ? AND mode = ? AND channel_id = ?')
+      .bind(familyId, mode, ch.channelId)
       .first<{ decision: Verdict['decision']; confidence: number; reason: string; evaluated_at: number }>();
     if (cached && now() - cached.evaluated_at < ttlMs) {
       verdicts[ch.channelId] = {
@@ -344,19 +354,19 @@ app.post('/evaluate/channels', async (c) => {
   }
 
   if (misses.length > 0) {
-    const fresh = await evaluateChannels(c.env, policy.settings.model, policy.criteria, misses);
+    const fresh = await evaluateChannels(c.env, policy.settings.model, criteriaFor(policy, mode), misses);
     for (const ch of misses) {
       const v = fresh[ch.channelId];
       verdicts[ch.channelId] = v;
       await db
         .prepare(
-          `INSERT INTO channel_verdicts (family_id, channel_id, decision, confidence, reason, evaluated_at, meta_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT (family_id, channel_id) DO UPDATE SET
+          `INSERT INTO channel_verdicts (family_id, mode, channel_id, decision, confidence, reason, evaluated_at, meta_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT (family_id, mode, channel_id) DO UPDATE SET
              decision = excluded.decision, confidence = excluded.confidence,
              reason = excluded.reason, evaluated_at = excluded.evaluated_at, meta_json = excluded.meta_json`,
         )
-        .bind(familyId, ch.channelId, v.decision, v.confidence, v.reason, v.evaluatedAt, JSON.stringify(ch))
+        .bind(familyId, mode, ch.channelId, v.decision, v.confidence, v.reason, v.evaluatedAt, JSON.stringify(ch))
         .run();
       if (v.decision === 'unsure') {
         const inserted = await addReviewItem(db, familyId, 'channel', ch.channelId, ch.title, v.reason, 'ai_unsure');
@@ -381,6 +391,7 @@ app.post('/evaluate/video', async (c) => {
   if (!video?.videoId) return c.json({ error: 'video.videoId required' }, 400);
 
   const policy = await loadPolicy(db, familyId);
+  const mode = effectiveMode(policy); // verdicts are cached per criteria mode
 
   // 1. Overrides win, video-level then channel-level.
   const videoOverride = policy.overrides.find((o) => o.kind === 'video' && o.targetId === video.videoId);
@@ -423,8 +434,8 @@ app.post('/evaluate/video', async (c) => {
 
   // 2. Cache — videos are immutable, verdicts never expire.
   const cached = await db
-    .prepare('SELECT decision, confidence, reason, evaluated_at FROM video_verdicts WHERE family_id = ? AND video_id = ?')
-    .bind(familyId, video.videoId)
+    .prepare('SELECT decision, confidence, reason, evaluated_at FROM video_verdicts WHERE family_id = ? AND mode = ? AND video_id = ?')
+    .bind(familyId, mode, video.videoId)
     .first<{ decision: Verdict['decision']; confidence: number; reason: string; evaluated_at: number }>();
   if (cached) {
     return c.json({
@@ -442,8 +453,8 @@ app.post('/evaluate/video', async (c) => {
   let channelPrior: Verdict | null = null;
   if (video.channelId) {
     const prior = await db
-      .prepare('SELECT decision, confidence, reason, evaluated_at FROM channel_verdicts WHERE family_id = ? AND channel_id = ?')
-      .bind(familyId, video.channelId)
+      .prepare('SELECT decision, confidence, reason, evaluated_at FROM channel_verdicts WHERE family_id = ? AND mode = ? AND channel_id = ?')
+      .bind(familyId, mode, video.channelId)
       .first<{ decision: Verdict['decision']; confidence: number; reason: string; evaluated_at: number }>();
     if (prior) {
       channelPrior = {
@@ -460,7 +471,7 @@ app.post('/evaluate/video', async (c) => {
   const verdict = await evaluateVideo(
     c.env,
     policy.settings.model,
-    policy.criteria,
+    criteriaFor(policy, mode),
     video,
     channelPrior,
     transcriptExcerpt,
@@ -468,9 +479,9 @@ app.post('/evaluate/video', async (c) => {
 
   await db
     .prepare(
-      'INSERT OR REPLACE INTO video_verdicts (family_id, video_id, decision, confidence, reason, evaluated_at, meta_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT OR REPLACE INTO video_verdicts (family_id, mode, video_id, decision, confidence, reason, evaluated_at, meta_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
-    .bind(familyId, video.videoId, verdict.decision, verdict.confidence, verdict.reason, verdict.evaluatedAt, JSON.stringify(video))
+    .bind(familyId, mode, video.videoId, verdict.decision, verdict.confidence, verdict.reason, verdict.evaluatedAt, JSON.stringify(video))
     .run();
 
   if (verdict.decision === 'unsure' || verdict.decision === 'block') {
@@ -547,19 +558,35 @@ app.get('/dashboard/policy', async (c) => {
 
 app.put('/dashboard/policy', async (c) => {
   const familyId = c.get('familyId');
-  const { criteria, settings } = await c.req.json<{ criteria: string; settings: Settings }>();
-  const merged: Settings = { ...DEFAULT_SETTINGS, ...settings };
+  const { criteria, weekendCriteria, settings } = await c.req.json<{
+    criteria: string;
+    weekendCriteria?: string;
+    settings: Settings;
+  }>();
+  const merged: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...settings,
+    schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings?.schedule ?? {}) },
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...(settings?.notifications ?? {}) },
+  };
+  const before = await loadPolicy(c.env.DB, familyId);
   await c.env.DB.prepare(
-    `INSERT INTO policies (family_id, criteria, settings_json, updated_at) VALUES (?, ?, ?, ?)
-     ON CONFLICT (family_id) DO UPDATE SET criteria = excluded.criteria, settings_json = excluded.settings_json, updated_at = excluded.updated_at`,
+    `INSERT INTO policies (family_id, criteria, weekend_criteria, settings_json, updated_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (family_id) DO UPDATE SET criteria = excluded.criteria, weekend_criteria = excluded.weekend_criteria, settings_json = excluded.settings_json, updated_at = excluded.updated_at`,
   )
-    .bind(familyId, criteria ?? '', JSON.stringify(merged), now())
+    .bind(familyId, criteria ?? '', weekendCriteria ?? '', JSON.stringify(merged), now())
     .run();
-  // Criteria changed → previous AI verdicts are stale. Clear them (overrides survive).
-  await c.env.DB.batch([
-    c.env.DB.prepare('DELETE FROM channel_verdicts WHERE family_id = ?').bind(familyId),
-    c.env.DB.prepare('DELETE FROM video_verdicts WHERE family_id = ?').bind(familyId),
-  ]);
+  // Clear cached verdicts only for the mode(s) whose criteria actually changed
+  // (overrides survive; settings-only saves clear nothing).
+  const stale: string[] = [];
+  if ((criteria ?? '') !== before.criteria) stale.push('week');
+  if ((weekendCriteria ?? '') !== before.weekendCriteria) stale.push('weekend');
+  for (const mode of stale) {
+    await c.env.DB.batch([
+      c.env.DB.prepare('DELETE FROM channel_verdicts WHERE family_id = ? AND mode = ?').bind(familyId, mode),
+      c.env.DB.prepare('DELETE FROM video_verdicts WHERE family_id = ? AND mode = ?').bind(familyId, mode),
+    ]);
+  }
   return c.json(await loadPolicy(c.env.DB, familyId));
 });
 
@@ -729,6 +756,7 @@ app.get('/dashboard/export', async (c) => {
     version: 1,
     exportedAt: now(),
     criteria: policy.criteria,
+    weekendCriteria: policy.weekendCriteria,
     settings: policy.settings,
     overrides: policy.overrides,
   };
@@ -741,14 +769,19 @@ app.post('/dashboard/import', async (c) => {
   if (bundle.version !== 1 || typeof bundle.criteria !== 'string' || !Array.isArray(bundle.overrides)) {
     return c.json({ error: 'Not a valid SaveKidsFromBrainRot export file' }, 400);
   }
-  const merged: Settings = { ...DEFAULT_SETTINGS, ...bundle.settings };
+  const merged: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...bundle.settings,
+    schedule: { ...DEFAULT_SETTINGS.schedule, ...(bundle.settings?.schedule ?? {}) },
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...(bundle.settings?.notifications ?? {}) },
+  };
   const db = c.env.DB;
   await db
     .prepare(
-      `INSERT INTO policies (family_id, criteria, settings_json, updated_at) VALUES (?, ?, ?, ?)
-       ON CONFLICT (family_id) DO UPDATE SET criteria = excluded.criteria, settings_json = excluded.settings_json, updated_at = excluded.updated_at`,
+      `INSERT INTO policies (family_id, criteria, weekend_criteria, settings_json, updated_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (family_id) DO UPDATE SET criteria = excluded.criteria, weekend_criteria = excluded.weekend_criteria, settings_json = excluded.settings_json, updated_at = excluded.updated_at`,
     )
-    .bind(familyId, bundle.criteria, JSON.stringify(merged), now())
+    .bind(familyId, bundle.criteria, bundle.weekendCriteria ?? '', JSON.stringify(merged), now())
     .run();
   await db.batch([
     db.prepare('DELETE FROM overrides WHERE family_id = ?').bind(familyId),
@@ -775,18 +808,20 @@ app.post('/dashboard/test', async (c) => {
   if (!parsed) return c.json({ error: 'Not a recognizable YouTube video or channel URL' }, 400);
 
   const policy = await loadPolicy(c.env.DB, familyId);
+  const mode = effectiveMode(policy);
+  const criteria = criteriaFor(policy, mode);
 
   if (parsed.kind === 'video') {
     const meta = await fetchVideoMetaServer(parsed.videoId);
     if (!meta) return c.json({ error: 'Could not fetch video metadata (private or removed?)' }, 404);
-    const verdict = await evaluateVideo(c.env, policy.settings.model, policy.criteria, meta as VideoMeta, null);
-    return c.json({ kind: 'video', extracted: meta, verdict } satisfies TestResponse);
+    const verdict = await evaluateVideo(c.env, policy.settings.model, criteria, meta as VideoMeta, null);
+    return c.json({ kind: 'video', extracted: meta, verdict, mode } satisfies TestResponse);
   }
 
   const meta = await fetchChannelMetaServer(parsed.ref);
   if (!meta) return c.json({ error: 'Could not fetch channel metadata' }, 404);
-  const verdicts = await evaluateChannels(c.env, policy.settings.model, policy.criteria, [meta]);
-  return c.json({ kind: 'channel', extracted: meta, verdict: verdicts[meta.channelId] } satisfies TestResponse);
+  const verdicts = await evaluateChannels(c.env, policy.settings.model, criteria, [meta]);
+  return c.json({ kind: 'channel', extracted: meta, verdict: verdicts[meta.channelId], mode } satisfies TestResponse);
 });
 
 // ---------- dashboard: API keys ----------
@@ -846,9 +881,11 @@ app.use('/api/v1/*', async (c, next) => {
 
 app.get('/api/v1/policy', async (c) => c.json(await service.getPolicy(c.env, c.get('familyId'))));
 app.put('/api/v1/criteria', async (c) => {
-  const { criteria } = await c.req.json<{ criteria: string }>();
+  const { criteria, mode } = await c.req.json<{ criteria: string; mode?: string }>();
   if (typeof criteria !== 'string') return c.json({ error: 'criteria (string) required' }, 400);
-  return c.json(await service.updateCriteria(c.env, c.get('familyId'), criteria));
+  return c.json(
+    await service.updateCriteria(c.env, c.get('familyId'), criteria, mode === 'weekend' ? 'weekend' : 'week'),
+  );
 });
 app.post('/api/v1/pause', async (c) => {
   const { minutes } = await c.req.json<{ minutes: number }>();

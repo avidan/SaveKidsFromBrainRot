@@ -4,6 +4,7 @@
 
 import type {
   ActivityEvent,
+  CriteriaMode,
   Override,
   Policy,
   ReviewItem,
@@ -15,6 +16,7 @@ import type {
 import { DEFAULT_SETTINGS } from '../../shared/types';
 import { evaluateChannels, evaluateVideo } from './claude';
 import type { Env } from './env';
+import { activeMode, criteriaFor, effectiveMode } from './mode';
 import { fetchChannelMetaServer, fetchVideoMetaServer, parseYouTubeUrl } from './yt';
 
 function now(): number {
@@ -23,18 +25,26 @@ function now(): number {
 
 export async function getPolicy(env: Env, familyId: string): Promise<Policy> {
   const row = await env.DB.prepare(
-    'SELECT criteria, settings_json, paused_until, updated_at FROM policies WHERE family_id = ?',
+    'SELECT criteria, weekend_criteria, settings_json, paused_until, updated_at FROM policies WHERE family_id = ?',
   )
     .bind(familyId)
-    .first<{ criteria: string; settings_json: string; paused_until: number | null; updated_at: number }>();
+    .first<{ criteria: string; weekend_criteria: string; settings_json: string; paused_until: number | null; updated_at: number }>();
   const overrides = await env.DB.prepare(
     'SELECT kind, target_id, decision, note, created_at FROM overrides WHERE family_id = ?',
   )
     .bind(familyId)
     .all<{ kind: string; target_id: string; decision: string; note: string | null; created_at: number }>();
-  const settings: Settings = { ...DEFAULT_SETTINGS, ...(row ? JSON.parse(row.settings_json) : {}) };
+  const parsed = row ? JSON.parse(row.settings_json) : {};
+  const settings: Settings = {
+    ...DEFAULT_SETTINGS,
+    ...parsed,
+    schedule: { ...DEFAULT_SETTINGS.schedule, ...(parsed.schedule ?? {}) },
+    notifications: { ...DEFAULT_SETTINGS.notifications, ...(parsed.notifications ?? {}) },
+  };
   return {
     criteria: row?.criteria ?? '',
+    weekendCriteria: row?.weekend_criteria ?? '',
+    activeMode: activeMode(settings),
     settings,
     overrides: overrides.results.map((o) => ({
       kind: o.kind as Override['kind'],
@@ -63,14 +73,23 @@ export async function setPause(env: Env, familyId: string, minutes: number | nul
   return pausedUntil;
 }
 
-/** Update criteria only (settings untouched); clears AI verdicts so content re-judges. */
-export async function updateCriteria(env: Env, familyId: string, criteria: string): Promise<Policy> {
-  await env.DB.prepare('UPDATE policies SET criteria = ?, updated_at = ? WHERE family_id = ?')
+/**
+ * Update one mode's criteria (settings untouched); clears only that mode's
+ * cached AI verdicts so its content re-judges — the other mode stays warm.
+ */
+export async function updateCriteria(
+  env: Env,
+  familyId: string,
+  criteria: string,
+  mode: CriteriaMode = 'week',
+): Promise<Policy> {
+  const column = mode === 'weekend' ? 'weekend_criteria' : 'criteria';
+  await env.DB.prepare(`UPDATE policies SET ${column} = ?, updated_at = ? WHERE family_id = ?`)
     .bind(criteria, now(), familyId)
     .run();
   await env.DB.batch([
-    env.DB.prepare('DELETE FROM channel_verdicts WHERE family_id = ?').bind(familyId),
-    env.DB.prepare('DELETE FROM video_verdicts WHERE family_id = ?').bind(familyId),
+    env.DB.prepare('DELETE FROM channel_verdicts WHERE family_id = ? AND mode = ?').bind(familyId, mode),
+    env.DB.prepare('DELETE FROM video_verdicts WHERE family_id = ? AND mode = ?').bind(familyId, mode),
   ]);
   return getPolicy(env, familyId);
 }
@@ -190,14 +209,16 @@ export async function testUrl(env: Env, familyId: string, url: string): Promise<
   const parsed = parseYouTubeUrl(url ?? '');
   if (!parsed) return { error: 'Not a recognizable YouTube video or channel URL' };
   const policy = await getPolicy(env, familyId);
+  const mode = effectiveMode(policy);
+  const criteria = criteriaFor(policy, mode);
   if (parsed.kind === 'video') {
     const meta = await fetchVideoMetaServer(parsed.videoId);
     if (!meta) return { error: 'Could not fetch video metadata' };
-    const verdict = await evaluateVideo(env, policy.settings.model, policy.criteria, meta, null);
-    return { kind: 'video', extracted: meta, verdict };
+    const verdict = await evaluateVideo(env, policy.settings.model, criteria, meta, null);
+    return { kind: 'video', extracted: meta, verdict, mode };
   }
   const meta = await fetchChannelMetaServer(parsed.ref);
   if (!meta) return { error: 'Could not fetch channel metadata' };
-  const verdicts: Record<string, Verdict> = await evaluateChannels(env, policy.settings.model, policy.criteria, [meta]);
-  return { kind: 'channel', extracted: meta, verdict: verdicts[meta.channelId] };
+  const verdicts: Record<string, Verdict> = await evaluateChannels(env, policy.settings.model, criteria, [meta]);
+  return { kind: 'channel', extracted: meta, verdict: verdicts[meta.channelId], mode };
 }

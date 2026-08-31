@@ -49,11 +49,14 @@ CREATE TABLE IF NOT EXISTS password_resets (
   used INTEGER NOT NULL DEFAULT 0
 );
 
--- Note: paused_until was added later; existing deployments migrate via
+-- Note: paused_until and weekend_criteria were added later; existing
+-- deployments migrate via
 --   ALTER TABLE policies ADD COLUMN paused_until INTEGER;
+--   ALTER TABLE policies ADD COLUMN weekend_criteria TEXT NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS policies (
   family_id TEXT PRIMARY KEY,
-  criteria TEXT NOT NULL DEFAULT '',
+  criteria TEXT NOT NULL DEFAULT '',           -- week / default criteria
+  weekend_criteria TEXT NOT NULL DEFAULT '',   -- '' = same rules all week
   settings_json TEXT NOT NULL DEFAULT '{}',
   paused_until INTEGER,        -- epoch ms: all viewing blocked until then
   updated_at INTEGER NOT NULL
@@ -69,26 +72,32 @@ CREATE TABLE IF NOT EXISTS overrides (
   PRIMARY KEY (family_id, kind, target_id)
 );
 
+-- Verdict caches are scoped per criteria mode ('week' | 'weekend') so a
+-- schedule flip never invalidates anything — both caches stay warm.
+-- These tables are pure caches: migrating older deployments is just
+-- DROP TABLE + re-running this file.
 CREATE TABLE IF NOT EXISTS channel_verdicts (
   family_id TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'week',
   channel_id TEXT NOT NULL,
   decision TEXT NOT NULL,
   confidence REAL NOT NULL,
   reason TEXT NOT NULL,
   evaluated_at INTEGER NOT NULL,
   meta_json TEXT,
-  PRIMARY KEY (family_id, channel_id)
+  PRIMARY KEY (family_id, mode, channel_id)
 );
 
 CREATE TABLE IF NOT EXISTS video_verdicts (
   family_id TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'week',
   video_id TEXT NOT NULL,
   decision TEXT NOT NULL,
   confidence REAL NOT NULL,
   reason TEXT NOT NULL,
   evaluated_at INTEGER NOT NULL,
   meta_json TEXT,
-  PRIMARY KEY (family_id, video_id)
+  PRIMARY KEY (family_id, mode, video_id)
 );
 
 CREATE TABLE IF NOT EXISTS review_items (

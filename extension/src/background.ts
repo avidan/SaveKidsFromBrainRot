@@ -41,6 +41,15 @@ async function set(key: string, value: unknown): Promise<void> {
   await chrome.storage.local.set({ [key]: value });
 }
 
+// Local verdict caches are scoped by criteria mode ('week' | 'weekend'),
+// mirroring the server's per-mode caches: a schedule flip never serves stale
+// verdicts and never throws warm ones away. When the family has no weekend
+// criteria, everything runs under 'week'.
+function cacheMode(policy: Policy | null): 'week' | 'weekend' {
+  if (!policy?.weekendCriteria?.trim()) return 'week';
+  return policy.activeMode === 'weekend' ? 'weekend' : 'week';
+}
+
 // Bound local verdict caches: keep the freshest N entries.
 const MAX_CACHE_ENTRIES = 3000;
 function pruneCache(cache: Record<string, Verdict>): Record<string, Verdict> {
@@ -88,7 +97,14 @@ async function syncPolicy(): Promise<Policy | null> {
     const previous = await get<Policy>('policy');
     if (previous && previous.updatedAt !== policy.updatedAt) {
       // Policy changed (criteria edits clear server caches too) — drop local caches.
-      await chrome.storage.local.remove(['channelVerdicts', 'videoVerdicts']);
+      await chrome.storage.local.remove([
+        'channelVerdicts',
+        'videoVerdicts',
+        'channelVerdicts:week',
+        'videoVerdicts:week',
+        'channelVerdicts:weekend',
+        'videoVerdicts:weekend',
+      ]);
     }
     await set('policy', policy);
     return policy;
@@ -164,7 +180,8 @@ function overrideVerdict(policy: Policy | null, kind: 'channel' | 'video', targe
 
 async function evaluateChannelsHandler(channels: ChannelMeta[]): Promise<ChannelVerdictsResponse> {
   const policy = await get<Policy>('policy');
-  const cache = (await get<Record<string, Verdict>>('channelVerdicts')) ?? {};
+  const cacheKey = `channelVerdicts:${cacheMode(policy)}`;
+  const cache = (await get<Record<string, Verdict>>(cacheKey)) ?? {};
   const ttlMs = (policy?.settings.channelTtlDays ?? 30) * 24 * 60 * 60 * 1000;
 
   const out: Record<string, Verdict> = {};
@@ -193,7 +210,7 @@ async function evaluateChannelsHandler(channels: ChannelMeta[]): Promise<Channel
         out[id] = verdict;
         cache[id] = verdict;
       }
-      await set('channelVerdicts', pruneCache(cache));
+      await set(cacheKey, pruneCache(cache));
     } catch {
       const fallback = failVerdict(policy, 'Could not reach the family server');
       for (const ch of misses) out[ch.channelId] = fallback;
@@ -217,7 +234,8 @@ async function evaluateVideoHandler(
     if (chOverride?.decision === 'block') return { verdict: chOverride };
   }
 
-  const cache = (await get<Record<string, Verdict>>('videoVerdicts')) ?? {};
+  const cacheKey = `videoVerdicts:${cacheMode(policy)}`;
+  const cache = (await get<Record<string, Verdict>>(cacheKey)) ?? {};
   if (cache[videoId]) return { verdict: cache[videoId] };
 
   const fetched = await fetchVideoData(videoId);
@@ -236,7 +254,7 @@ async function evaluateVideoHandler(
       body: JSON.stringify({ video: meta, transcriptExcerpt: fetched?.transcriptExcerpt }),
     });
     cache[videoId] = resp.verdict;
-    await set('videoVerdicts', pruneCache(cache));
+    await set(cacheKey, pruneCache(cache));
     return { verdict: resp.verdict };
   } catch {
     return { verdict: failVerdict(policy, 'Could not reach the family server') };
@@ -258,7 +276,15 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
   }
   const policy = await get<Policy>('policy');
   const pausedUntil = policy?.pausedUntil && policy.pausedUntil > Date.now() ? policy.pausedUntil : null;
-  const limitMinutes = policy?.settings.dailyLimitMinutes ?? null;
+  // Window mode drives the limit; cache mode (= 'week' when there are no
+  // weekend criteria) is what content scripts key their filtering on.
+  const windowMode = policy?.activeMode === 'weekend' ? 'weekend' : 'week';
+  const activeMode = cacheMode(policy);
+  // Weekend can carry its own daily limit; null falls back to the week limit.
+  const limitMinutes =
+    windowMode === 'weekend'
+      ? policy?.settings.weekendDailyLimitMinutes ?? policy?.settings.dailyLimitMinutes ?? null
+      : policy?.settings.dailyLimitMinutes ?? null;
 
   let usage = (await get<Usage>('usage')) ?? { date: today(), seconds: 0 };
   if (usage.date !== today()) usage = { date: today(), seconds: 0 }; // midnight reset
@@ -272,8 +298,8 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
     }
   }
 
-  if (limitMinutes === null) return { remainingSeconds: null, pausedUntil };
-  return { remainingSeconds: Math.max(0, limitMinutes * 60 - usage.seconds), pausedUntil };
+  if (limitMinutes === null) return { remainingSeconds: null, pausedUntil, activeMode };
+  return { remainingSeconds: Math.max(0, limitMinutes * 60 - usage.seconds), pausedUntil, activeMode };
 }
 
 // ---------- pairing ----------
