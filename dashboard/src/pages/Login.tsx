@@ -1,3 +1,18 @@
+import {
+  Alert,
+  Anchor,
+  Button,
+  Card,
+  Center,
+  Group,
+  PasswordInput,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Title,
+} from '@mantine/core';
+import { IconAlertCircle, IconCircleCheck, IconShieldCheck } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { api, getBackendUrl, setBackendUrl, setToken } from '../api';
 
@@ -6,6 +21,13 @@ type Mode = 'login' | 'signup' | 'forgot';
 export default function Login({ onAuthed }: { onAuthed: () => void }) {
   const [mode, setMode] = useState<Mode>('login');
   const [backend, setBackend] = useState(getBackendUrl());
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
 
   // Single-deploy setups serve this dashboard from the Worker itself, so the
   // API is same-origin. Probe /health and prefill — must parse as JSON, since
@@ -19,13 +41,6 @@ export default function Login({ onAuthed }: { onAuthed: () => void }) {
       })
       .catch(() => undefined);
   }, []);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [resetCode, setResetCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     setError('');
@@ -65,50 +80,103 @@ export default function Login({ onAuthed }: { onAuthed: () => void }) {
     mode === 'login' ? 'Sign in' : mode === 'signup' ? 'Sign up' : codeSent ? 'Set new password' : 'Send reset code';
 
   return (
-    <div className="auth-box">
-      <h1>🛡️ SaveKidsFromBrainRot</h1>
-      <div className="card">
-        <h2>{title}</h2>
-        <label>Backend URL</label>
-        <input
-          value={backend}
-          onChange={(e) => setBackend(e.target.value)}
-          placeholder="https://api.yourdomain.com"
-        />
-        <label>Email</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
-        {mode === 'forgot' && codeSent && (
-          <>
-            <label>6-digit code (check your ntfy app / email)</label>
-            <input value={resetCode} onChange={(e) => setResetCode(e.target.value)} maxLength={6} />
-          </>
-        )}
-        {(mode !== 'forgot' || codeSent) && (
-          <>
-            <label>{mode === 'forgot' ? 'New password' : 'Password'}</label>
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" />
-          </>
-        )}
-        <button className="primary" disabled={busy} onClick={() => void submit()}>
-          {buttonLabel}
-        </button>
-        {error && <div className="msg error">{error}</div>}
-        {notice && <div className="msg ok">{notice}</div>}
-        <div className="switch">
-          {mode === 'login' && (
-            <>
-              New here? <a onClick={() => setMode('signup')}>Create an account</a>
-              {' · '}
-              <a onClick={() => { setMode('forgot'); setCodeSent(false); }}>Forgot password?</a>
-            </>
-          )}
-          {mode !== 'login' && (
-            <>
-              Back to <a onClick={() => { setMode('login'); setCodeSent(false); }}>sign in</a>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <Center mih="100vh" p="md" style={{ background: '#faf9f7' }}>
+      <Stack w={420} maw="100%" gap="lg">
+        <Group justify="center" gap="sm">
+          <ThemeIcon size={44} radius="md" variant="gradient" gradient={{ from: 'orange.5', to: 'orange.7' }}>
+            <IconShieldCheck size={28} />
+          </ThemeIcon>
+          <div>
+            <Title order={3} lh={1.1}>
+              SaveKidsFromBrainRot
+            </Title>
+            <Text size="sm" c="dimmed">
+              AI parental controls for YouTube
+            </Text>
+          </div>
+        </Group>
+
+        <Card shadow="sm">
+          <Stack gap="sm">
+            <Title order={4}>{title}</Title>
+            <TextInput
+              label="Dashboard URL"
+              description="Where your family's server lives"
+              value={backend}
+              onChange={(e) => setBackend(e.currentTarget.value)}
+              placeholder="https://skfbr-backend.you.workers.dev"
+            />
+            <TextInput
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+            />
+            {mode === 'forgot' && codeSent && (
+              <TextInput
+                label="6-digit code"
+                description="Check your ntfy app or email"
+                maxLength={6}
+                value={resetCode}
+                onChange={(e) => setResetCode(e.currentTarget.value)}
+              />
+            )}
+            {(mode !== 'forgot' || codeSent) && (
+              <PasswordInput
+                label={mode === 'forgot' ? 'New password' : 'Password'}
+                value={password}
+                onChange={(e) => setPassword(e.currentTarget.value)}
+              />
+            )}
+            <Button fullWidth loading={busy} onClick={() => void submit()}>
+              {buttonLabel}
+            </Button>
+            {error && (
+              <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                {error}
+              </Alert>
+            )}
+            {notice && (
+              <Alert color="teal" icon={<IconCircleCheck size={16} />}>
+                {notice}
+              </Alert>
+            )}
+            <Text size="sm" c="dimmed" ta="center">
+              {mode === 'login' ? (
+                <>
+                  New here?{' '}
+                  <Anchor size="sm" onClick={() => setMode('signup')}>
+                    Create an account
+                  </Anchor>
+                  {' · '}
+                  <Anchor
+                    size="sm"
+                    onClick={() => {
+                      setMode('forgot');
+                      setCodeSent(false);
+                    }}
+                  >
+                    Forgot password?
+                  </Anchor>
+                </>
+              ) : (
+                <>
+                  Back to{' '}
+                  <Anchor
+                    size="sm"
+                    onClick={() => {
+                      setMode('login');
+                      setCodeSent(false);
+                    }}
+                  >
+                    sign in
+                  </Anchor>
+                </>
+              )}
+            </Text>
+          </Stack>
+        </Card>
+      </Stack>
+    </Center>
   );
 }

@@ -1,198 +1,30 @@
-:root {
-  --bg: #fffbf5;
-  --card: #ffffff;
-  --ink: #292524;
-  --muted: #78716c;
-  --accent: #ea580c;
-  --accent-soft: #ffedd5;
-  --green: #15803d;
-  --red: #b91c1c;
-  --border: #e7e5e4;
-}
-
-* { box-sizing: border-box; }
-
 body {
-  margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--ink);
+  background: #faf9f7;
 }
 
-.shell { max-width: 880px; margin: 0 auto; padding: 24px 16px 80px; }
-
-header.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-header.topbar h1 { font-size: 20px; color: var(--accent); margin: 0; }
-header.topbar button { background: none; border: none; color: var(--muted); cursor: pointer; }
-
-.topbar-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.pause-control { display: flex; align-items: center; gap: 8px; }
-.pause-control select {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--ink);
-  font-size: 13px;
-}
-header.topbar .pause-control button {
-  padding: 8px 14px;
-  border: 1px solid var(--red);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--red);
-  font-size: 13px;
-  font-weight: 600;
-}
-header.topbar .pause-control button:disabled { opacity: 0.6; cursor: default; }
-.pause-control.paused {
-  background: #fef2f2;
-  border: 1px solid var(--red);
-  border-radius: 999px;
-  padding: 4px 6px 4px 14px;
-}
-.pause-control .pause-status { color: var(--red); font-size: 13px; font-weight: 600; }
-header.topbar .pause-control.paused button { background: var(--red); color: white; border-color: var(--red); }
-
-nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; }
-nav.tabs button {
-  padding: 8px 16px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  border-radius: 999px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--ink);
-}
-nav.tabs button.active { background: var(--accent); border-color: var(--accent); color: white; }
-nav.tabs button .badge {
-  background: var(--red);
-  color: white;
-  border-radius: 999px;
-  padding: 1px 7px;
-  font-size: 11px;
-  margin-left: 6px;
-}
-nav.tabs button.active .badge { background: white; color: var(--accent); }
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.card h2 { margin: 0 0 4px; font-size: 17px; }
-.card .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
-
-label { display: block; font-weight: 600; font-size: 13px; margin: 12px 0 4px; }
-input, textarea, select {
-  width: 100%;
-  padding: 9px 11px;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-family: inherit;
-  background: white;
-  color: var(--ink);
-}
-textarea { min-height: 160px; line-height: 1.5; resize: vertical; }
-
-button.primary {
-  margin-top: 14px;
-  padding: 9px 22px;
-  font-size: 14px;
-  border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: white;
-  cursor: pointer;
-}
-button.primary:disabled { opacity: 0.5; cursor: default; }
-button.small {
-  padding: 5px 12px;
-  font-size: 13px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  color: var(--ink);
-}
-button.small.allow { border-color: var(--green); color: var(--green); }
-button.small.block { border-color: var(--red); color: var(--red); }
-
-.item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
-}
-.item:first-of-type { border-top: none; }
-.item .meta { flex: 1; min-width: 0; }
-.item .meta .title { font-weight: 600; font-size: 14px; }
-.item .meta .detail { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-.item .actions { display: flex; gap: 6px; flex-shrink: 0; }
-.item img.thumb {
-  width: 108px;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: 8px;
-  flex-shrink: 0;
-  background: var(--border);
-}
-
-.pill {
-  display: inline-block;
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.pill.allow { background: #dcfce7; color: var(--green); }
-.pill.block { background: #fee2e2; color: var(--red); }
-.pill.unsure { background: #fef9c3; color: #854d0e; }
-
-.msg { margin-top: 10px; font-size: 13.5px; font-weight: 600; }
-.msg.ok { color: var(--green); }
-.msg.error { color: var(--red); }
-
-.auth-box { max-width: 380px; margin: 10vh auto 0; }
-.auth-box h1 { color: var(--accent); text-align: center; }
-.auth-box .switch { text-align: center; margin-top: 12px; font-size: 13.5px; }
-.auth-box .switch a { color: var(--accent); cursor: pointer; }
-
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
-.checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; }
-.checkbox-row input { width: auto; }
-
+/* Six-digit pairing code display */
 .paircode {
-  font-size: 34px;
-  letter-spacing: 8px;
-  font-weight: 700;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-radius: 10px;
-  padding: 12px 18px;
-  display: inline-block;
-  margin-top: 10px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
+  color: var(--mantine-color-orange-7);
+  background: var(--mantine-color-orange-0);
+  border: 1px dashed var(--mantine-color-orange-4);
+  border-radius: 12px;
+  padding: 18px 24px 18px calc(24px + 0.35em);
+  text-align: center;
+  margin-top: 12px;
 }
-.empty { color: var(--muted); font-size: 14px; padding: 12px 0; }
 
-.toolbar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 0 0 12px;
+/* Secrets shown once (tokens, API keys) */
+.secret-box {
+  display: block;
+  word-break: break-all;
+  background: var(--mantine-color-orange-0);
+  border: 1px solid var(--mantine-color-orange-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--mantine-font-family-monospace);
 }
-.toolbar input { flex: 1; min-width: 160px; }
-.toolbar select { width: auto; }
-
-.summary-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.summary-row .pill { font-size: 13px; padding: 5px 12px; background: var(--accent-soft); color: #9a3412; }

@@ -1,3 +1,28 @@
+import {
+  AppShell,
+  Badge,
+  Box,
+  Button,
+  Container,
+  Group,
+  Select,
+  Tabs,
+  Text,
+  ThemeIcon,
+  Title,
+} from '@mantine/core';
+import {
+  IconActivity,
+  IconClipboardCheck,
+  IconDevices,
+  IconKey,
+  IconLogout,
+  IconPin,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconShieldCheck,
+  IconSparkles,
+} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { api, getToken, setToken } from './api';
 import ActivityPage from './pages/ActivityPage';
@@ -8,17 +33,14 @@ import Login from './pages/Login';
 import OverridesPage from './pages/OverridesPage';
 import ReviewPage from './pages/ReviewPage';
 
-const TABS = ['Criteria', 'Review', 'Overrides', 'Devices', 'Activity', 'API'] as const;
-type Tab = (typeof TABS)[number];
-
 const PAUSE_CHOICES = [
-  { label: '15 minutes', minutes: 15 },
-  { label: '30 minutes', minutes: 30 },
-  { label: '1 hour', minutes: 60 },
-  { label: '2 hours', minutes: 120 },
-  { label: '4 hours', minutes: 240 },
-  { label: 'Rest of the day', minutes: -1 }, // computed at click time
-] as const;
+  { label: '15 minutes', value: '15' },
+  { label: '30 minutes', value: '30' },
+  { label: '1 hour', value: '60' },
+  { label: '2 hours', value: '120' },
+  { label: '4 hours', value: '240' },
+  { label: 'Rest of the day', value: 'eod' },
+];
 
 function minutesUntilMidnight(): number {
   const midnight = new Date();
@@ -29,7 +51,7 @@ function minutesUntilMidnight(): number {
 /** Big red switch: pause all YouTube viewing on every device for a while. */
 function PauseControl() {
   const [pausedUntil, setPausedUntil] = useState<number | null>(null);
-  const [choice, setChoice] = useState(30);
+  const [choice, setChoice] = useState('30');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -44,9 +66,7 @@ function PauseControl() {
       }
     };
     void load();
-    // Poll so a pause set elsewhere (MCP, another tab) shows here; a 1s tick
-    // would be overkill — the countdown below re-renders on this cadence too.
-    const interval = setInterval(load, 30_000);
+    const interval = setInterval(load, 30_000); // reflect pauses set via MCP or other tabs
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -58,7 +78,7 @@ function PauseControl() {
   const pause = async () => {
     setBusy(true);
     try {
-      const minutes = choice === -1 ? minutesUntilMidnight() : choice;
+      const minutes = choice === 'eod' ? minutesUntilMidnight() : Number(choice);
       const { pausedUntil } = await api.pause(minutes);
       setPausedUntil(pausedUntil);
     } finally {
@@ -79,34 +99,60 @@ function PauseControl() {
   if (active) {
     const until = new Date(pausedUntil!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     return (
-      <div className="pause-control paused">
-        <span className="pause-status">⏸️ Paused until {until}</span>
-        <button disabled={busy} onClick={() => void resume()}>
+      <Group gap="xs">
+        <Badge color="red" size="lg" variant="light" leftSection={<IconPlayerPause size={13} />}>
+          Paused until {until}
+        </Badge>
+        <Button
+          size="xs"
+          color="red"
+          loading={busy}
+          leftSection={<IconPlayerPlay size={14} />}
+          onClick={() => void resume()}
+        >
           Resume
-        </button>
-      </div>
+        </Button>
+      </Group>
     );
   }
 
   return (
-    <div className="pause-control">
-      <select value={choice} onChange={(e) => setChoice(Number(e.target.value))}>
-        {PAUSE_CHOICES.map((c) => (
-          <option key={c.label} value={c.minutes}>
-            {c.label}
-          </option>
-        ))}
-      </select>
-      <button disabled={busy} onClick={() => void pause()}>
-        ⏸️ Pause YouTube
-      </button>
-    </div>
+    <Group gap="xs" wrap="nowrap">
+      <Select
+        size="xs"
+        w={130}
+        data={PAUSE_CHOICES}
+        value={choice}
+        onChange={(v) => v && setChoice(v)}
+        allowDeselect={false}
+        aria-label="Pause duration"
+      />
+      <Button
+        size="xs"
+        color="red"
+        variant="outline"
+        loading={busy}
+        leftSection={<IconPlayerPause size={14} />}
+        onClick={() => void pause()}
+      >
+        Pause YouTube
+      </Button>
+    </Group>
   );
 }
 
+const TABS = [
+  { value: 'criteria', label: 'Rules', icon: IconSparkles },
+  { value: 'review', label: 'Review', icon: IconClipboardCheck },
+  { value: 'overrides', label: 'Pinned', icon: IconPin },
+  { value: 'devices', label: 'Devices', icon: IconDevices },
+  { value: 'activity', label: 'Activity', icon: IconActivity },
+  { value: 'api', label: 'API & MCP', icon: IconKey },
+];
+
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!getToken());
-  const [tab, setTab] = useState<Tab>('Criteria');
+  const [tab, setTab] = useState('criteria');
   const [reviewCount, setReviewCount] = useState(0);
 
   useEffect(() => {
@@ -140,28 +186,70 @@ export default function App() {
   };
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <h1>🛡️ SaveKidsFromBrainRot</h1>
-        <div className="topbar-actions">
-          <PauseControl />
-          <button onClick={() => void logout()}>Sign out</button>
-        </div>
-      </header>
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)}>
-            {t}
-            {t === 'Review' && reviewCount > 0 && <span className="badge">{reviewCount}</span>}
-          </button>
-        ))}
-      </nav>
-      {tab === 'Criteria' && <CriteriaPage />}
-      {tab === 'Review' && <ReviewPage onChanged={() => setReviewCount((c) => Math.max(0, c - 1))} />}
-      {tab === 'Overrides' && <OverridesPage />}
-      {tab === 'Devices' && <DevicesPage />}
-      {tab === 'Activity' && <ActivityPage />}
-      {tab === 'API' && <ApiPage />}
-    </div>
+    <AppShell header={{ height: 64 }} padding={0}>
+      <AppShell.Header withBorder style={{ background: 'white' }}>
+        <Container size="md" h="100%">
+          <Group h="100%" justify="space-between" wrap="nowrap">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon size={36} radius="md" variant="gradient" gradient={{ from: 'orange.5', to: 'orange.7' }}>
+                <IconShieldCheck size={22} />
+              </ThemeIcon>
+              <Box visibleFrom="xs">
+                <Title order={4} lh={1.1}>
+                  SaveKidsFromBrainRot
+                </Title>
+                <Text size="xs" c="dimmed" lh={1.2}>
+                  AI parental controls for YouTube
+                </Text>
+              </Box>
+            </Group>
+            <Group gap="md" wrap="nowrap">
+              <PauseControl />
+              <Button
+                size="xs"
+                variant="subtle"
+                color="gray"
+                leftSection={<IconLogout size={14} />}
+                onClick={() => void logout()}
+              >
+                Sign out
+              </Button>
+            </Group>
+          </Group>
+        </Container>
+      </AppShell.Header>
+
+      <AppShell.Main style={{ background: '#faf9f7' }}>
+        <Container size="md" py="lg">
+          <Tabs value={tab} onChange={(v) => v && setTab(v)} keepMounted={false} mb="lg">
+            <Tabs.List>
+              {TABS.map((t) => (
+                <Tabs.Tab
+                  key={t.value}
+                  value={t.value}
+                  leftSection={<t.icon size={15} />}
+                  rightSection={
+                    t.value === 'review' && reviewCount > 0 ? (
+                      <Badge size="xs" color="red" circle>
+                        {reviewCount}
+                      </Badge>
+                    ) : undefined
+                  }
+                >
+                  {t.label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
+
+          {tab === 'criteria' && <CriteriaPage />}
+          {tab === 'review' && <ReviewPage onChanged={() => setReviewCount((c) => Math.max(0, c - 1))} />}
+          {tab === 'overrides' && <OverridesPage />}
+          {tab === 'devices' && <DevicesPage />}
+          {tab === 'activity' && <ActivityPage />}
+          {tab === 'api' && <ApiPage />}
+        </Container>
+      </AppShell.Main>
+    </AppShell>
   );
 }

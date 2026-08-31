@@ -1,3 +1,16 @@
+import {
+  Alert,
+  Button,
+  Card,
+  Code,
+  CopyButton,
+  Group,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from '@mantine/core';
+import { IconCheck, IconCopy, IconKey, IconPlus, IconSparkles } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import type { ApiKeyInfo } from '../../../shared/types';
 import { api, getBackendUrl } from '../api';
@@ -6,7 +19,6 @@ export default function ApiPage() {
   const [keys, setKeys] = useState<ApiKeyInfo[]>([]);
   const [name, setName] = useState('');
   const [created, setCreated] = useState<{ name: string; key: string } | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
 
   const backend = getBackendUrl();
 
@@ -23,7 +35,6 @@ export default function ApiPage() {
     const { key } = await api.createApiKey(keyName);
     setCreated({ name: keyName, key });
     setName('');
-    setCopied(null);
     await load();
   };
 
@@ -34,102 +45,142 @@ export default function ApiPage() {
     await load();
   };
 
-  const copy = (label: string, text: string) => {
-    void navigator.clipboard.writeText(text);
-    setCopied(label);
-  };
-
   const mcpUrl = created ? `${backend}/mcp/${created.key}` : `${backend}/mcp/<your-key>`;
 
   return (
-    <>
-      <div className="card">
-        <h2>API keys</h2>
-        <p className="sub">
-          Keys give programmatic access to your family's data — same powers as this dashboard.
-          Shown once at creation; revoke anytime.
-        </p>
-        <label>Key name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Claude MCP" />
-        <button className="primary" onClick={() => void create()}>
-          Create key
-        </button>
-        {created && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>“{created.name}” — copy it now, it won't be shown again:</div>
-            <code
-              style={{
-                display: 'block',
-                wordBreak: 'break-all',
-                background: 'var(--accent-soft)',
-                borderRadius: 8,
-                padding: '10px 12px',
-                margin: '8px 0',
-                fontSize: 13,
-              }}
-            >
-              {created.key}
-            </code>
-            <button className="small" onClick={() => copy('key', created.key)}>
-              {copied === 'key' ? 'Copied ✓' : 'Copy key'}
-            </button>
+    <Stack gap="md">
+      <Card>
+        <Stack gap="sm">
+          <div>
+            <Title order={4}>API keys</Title>
+            <Text size="sm" c="dimmed">
+              Keys give programmatic access to your family's data — same powers as this dashboard.
+              Shown once at creation; revoke anytime.
+            </Text>
           </div>
-        )}
-        {keys.map((k) => (
-          <div className="item" key={k.id}>
-            <div className="meta">
-              <div className="title">{k.name}</div>
-              <div className="detail">
-                Created {new Date(k.createdAt).toLocaleDateString()} · last used{' '}
-                {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : 'never'}
-              </div>
-            </div>
-            <div className="actions">
-              <button className="small block" onClick={() => void revoke(k.id)}>
+          <Group align="flex-end" gap="xs">
+            <TextInput
+              label="Key name"
+              style={{ flex: 1 }}
+              maw={320}
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              placeholder="e.g. Claude MCP"
+            />
+            <Button leftSection={<IconPlus size={16} />} onClick={() => void create()}>
+              Create key
+            </Button>
+          </Group>
+          {created && (
+            <Alert color="orange" icon={<IconKey size={16} />} title={`“${created.name}” — copy it now, it won't be shown again`}>
+              <code className="secret-box">{created.key}</code>
+              <Group mt="xs">
+                <CopyButton value={created.key}>
+                  {({ copied, copy }) => (
+                    <Button
+                      size="compact-sm"
+                      variant="default"
+                      leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                      onClick={copy}
+                    >
+                      {copied ? 'Copied' : 'Copy key'}
+                    </Button>
+                  )}
+                </CopyButton>
+              </Group>
+            </Alert>
+          )}
+          {keys.map((k) => (
+            <Group key={k.id} justify="space-between" wrap="nowrap" py={4}>
+              <Stack gap={2}>
+                <Text fw={600} size="sm">
+                  {k.name}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Created {new Date(k.createdAt).toLocaleDateString()} · last used{' '}
+                  {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString() : 'never'}
+                </Text>
+              </Stack>
+              <Button size="compact-sm" color="red" variant="light" onClick={() => void revoke(k.id)}>
                 Revoke
-              </button>
-            </div>
+              </Button>
+            </Group>
+          ))}
+          {keys.length === 0 && (
+            <Text c="dimmed" ta="center" py="md">
+              No API keys yet.
+            </Text>
+          )}
+        </Stack>
+      </Card>
+
+      <Card>
+        <Stack gap="sm">
+          <div>
+            <Title order={4}>
+              <Group gap={8}>
+                <IconSparkles size={20} color="var(--mantine-color-orange-6)" />
+                Connect Claude (MCP)
+              </Group>
+            </Title>
+            <Text size="sm" c="dimmed">
+              Manage everything conversationally — “what did the kids watch today?”, “approve that
+              request”, “pause YouTube for an hour”, “make the weekend rules allow Minecraft”.
+              Create a key above, then connect:
+            </Text>
           </div>
-        ))}
-        {keys.length === 0 && <div className="empty">No API keys yet.</div>}
-      </div>
+          <div>
+            <Text size="sm" fw={500}>
+              claude.ai → Settings → Connectors → Add custom connector → URL:
+            </Text>
+            <Code block mt={4} style={{ wordBreak: 'break-all' }}>
+              {mcpUrl}
+            </Code>
+          </div>
+          <div>
+            <Text size="sm" fw={500}>
+              Claude Code:
+            </Text>
+            <Code block mt={4} style={{ wordBreak: 'break-all' }}>
+              claude mcp add skfbr --transport http {backend}/mcp --header "Authorization: Bearer
+              &lt;your-key&gt;"
+            </Code>
+          </div>
+          <Text size="xs" c="dimmed">
+            Tools exposed: policy &amp; criteria (week and weekend), pause/resume, review queue,
+            overrides, activity, screen time, devices, and test-a-URL. The URL form embeds your key
+            — treat that link as a secret.
+          </Text>
+        </Stack>
+      </Card>
 
-      <div className="card">
-        <h2>Connect Claude (MCP)</h2>
-        <p className="sub">
-          Manage everything conversationally — “what did the kids watch today?”, “approve that
-          request”, “block that channel”, “pause YouTube for an hour”. Create a key above, then connect:
-        </p>
-        <label>claude.ai → Settings → Connectors → Add custom connector → URL:</label>
-        <code style={{ display: 'block', wordBreak: 'break-all', fontSize: 13, padding: '8px 0' }}>{mcpUrl}</code>
-        {created && (
-          <button className="small" onClick={() => copy('mcp', mcpUrl)}>
-            {copied === 'mcp' ? 'Copied ✓' : 'Copy MCP URL'}
-          </button>
-        )}
-        <label style={{ marginTop: 16 }}>Claude Code:</label>
-        <code style={{ display: 'block', wordBreak: 'break-all', fontSize: 13, padding: '8px 0' }}>
-          claude mcp add skfbr --transport http {backend}/mcp --header "Authorization: Bearer &lt;your-key&gt;"
-        </code>
-        <p className="sub" style={{ marginTop: 12 }}>
-          Tools exposed: policy &amp; criteria, review queue (list/resolve), overrides, activity,
-          screen time, devices, and test-a-URL. The URL form embeds your key — treat that link as a
-          secret.
-        </p>
-      </div>
-
-      <div className="card">
-        <h2>REST API</h2>
-        <p className="sub">
-          Base <code>{backend}/api/v1</code> · header <code>Authorization: Bearer &lt;key&gt;</code>
-        </p>
-        <div className="detail" style={{ fontSize: 13.5, lineHeight: 2 }}>
-          <code>GET /policy</code> · <code>PUT /criteria</code> · <code>POST /pause</code> ·{' '}
-          <code>DELETE /pause</code> · <code>GET /review</code> ·{' '}
-          <code>POST /review/:id</code> · <code>POST /overrides</code> · <code>GET /activity</code> ·{' '}
-          <code>GET /screen-time</code> · <code>GET /devices</code> · <code>POST /test</code>
-        </div>
-      </div>
-    </>
+      <Card>
+        <Stack gap="sm">
+          <div>
+            <Title order={4}>REST API</Title>
+            <Text size="sm" c="dimmed">
+              Base <Code>{backend}/api/v1</Code> · header <Code>Authorization: Bearer &lt;key&gt;</Code>
+            </Text>
+          </div>
+          <Group gap={6}>
+            {[
+              'GET /policy',
+              'PUT /criteria',
+              'POST /pause',
+              'DELETE /pause',
+              'GET /review',
+              'POST /review/:id',
+              'POST /overrides',
+              'GET /activity',
+              'GET /screen-time',
+              'GET /devices',
+              'POST /test',
+            ].map((e) => (
+              <Code key={e}>{e}</Code>
+            ))}
+          </Group>
+        </Stack>
+      </Card>
+    </Stack>
   );
 }
