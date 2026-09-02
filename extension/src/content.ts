@@ -62,15 +62,34 @@ const SHORTS_ITEM_SELECTOR = [
 
 let overlayEl: HTMLElement | null = null;
 
-// Brand shield mark (inline so no web-accessible resources are needed).
+// Brand shield-and-sprout mark (inline so no web-accessible resources are needed).
 const BRAND_SVG =
   '<svg width="15" height="15" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">' +
-  '<rect x="4" y="4" width="120" height="120" rx="28" fill="#ea580c"/>' +
-  '<path d="M64 18 L102 32 V62 C102 88 86 104 64 112 C42 104 26 88 26 62 V32 Z" fill="#fff"/>' +
-  '<path d="M54 46 L84 64 L54 82 Z" fill="#ea580c"/></svg>';
+  '<rect x="4" y="4" width="120" height="120" rx="30" fill="#ea580c"/>' +
+  '<path d="M64 15 L105 30 V62 C105 90 88 107 64 115 C40 107 23 90 23 62 V30 Z" fill="#fff"/>' +
+  '<path d="M64 96 C64 96 64 78 64 70 M64 70 C64 52 52 42 34 42 C34 62 46 72 64 70 M64 62 C64 46 76 36 94 36 C94 56 82 66 64 62" fill="none" stroke="#ea580c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<path d="M34 42 C34 62 46 72 62 70 C62 52 52 42 34 42 Z" fill="#ea580c"/>' +
+  '<path d="M94 36 C94 56 82 66 66 62 C66 46 76 36 94 36 Z" fill="#f97316"/></svg>';
+
+// State icons for the overlay — branded line icons instead of OS emoji.
+type OverlayIcon = 'checking' | 'blocked' | 'time' | 'paused';
+const ICON_SVG: Record<OverlayIcon, string> = {
+  checking:
+    '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.2 15.2 L20.5 20.5"/></svg>',
+  blocked:
+    '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-linecap="round">' +
+    '<circle cx="12" cy="12" r="9"/><path d="M5.8 5.8 L18.2 18.2"/></svg>',
+  time:
+    '<svg width="36" height="36" viewBox="0 0 24 24" fill="#ea580c">' +
+    '<path d="M12.5 3 A 9 9 0 1 0 21 11.5 A 7.2 7.2 0 0 1 12.5 3 Z"/></svg>',
+  paused:
+    '<svg width="36" height="36" viewBox="0 0 24 24" fill="#ea580c">' +
+    '<rect x="7" y="5" width="3.6" height="14" rx="1.6"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.6"/></svg>',
+};
 
 function showOverlay(opts: {
-  emoji: string;
+  icon: OverlayIcon;
   title: string;
   message: string;
   spinner?: boolean;
@@ -85,7 +104,7 @@ function showOverlay(opts: {
 
   const emoji = document.createElement('div');
   emoji.className = 'skfbr-emoji';
-  emoji.textContent = opts.emoji;
+  emoji.innerHTML = ICON_SVG[opts.icon];
   const h1 = document.createElement('h1');
   h1.textContent = opts.title;
   const p = document.createElement('p');
@@ -364,7 +383,7 @@ async function gateWatchPage(): Promise<void> {
 
   holdPlayback();
   showOverlay({
-    emoji: '🔎',
+    icon: 'checking',
     title: 'One second…',
     message: "Checking this video against your family's rules.",
     spinner: true,
@@ -396,7 +415,7 @@ async function gateWatchPage(): Promise<void> {
     deniedVideos.add(videoId);
     void send({ type: 'REPORT_BLOCKED', targetKind: 'video', targetId: videoId, title: pageTitle });
     showOverlay({
-      emoji: '🌈',
+      icon: 'blocked',
       title: "This one isn't on your list",
       message:
         resp.verdict.decision === 'unsure'
@@ -407,7 +426,7 @@ async function gateWatchPage(): Promise<void> {
       // effect right away instead of waiting for the 5-minute poll.
       onRecheck: () => {
         void (async () => {
-          showOverlay({ emoji: '🔎', title: 'One second…', message: 'Checking with the latest rules.', spinner: true });
+          showOverlay({ icon: 'checking', title: 'One second…', message: 'Checking with the latest rules.', spinner: true });
           await send({ type: 'SYNC_POLICY' });
           currentVideoId = null;
           void gateWatchPage();
@@ -429,7 +448,7 @@ async function gateEmbed(): Promise<void> {
       return;
     }
     showOverlay({
-      emoji: '🌈',
+      icon: 'blocked',
       title: "Can't check this one",
       message: 'This embedded player could not be checked, so it stays off.',
     });
@@ -437,7 +456,7 @@ async function gateEmbed(): Promise<void> {
   }
 
   showOverlay({
-    emoji: '🔎',
+    icon: 'checking',
     title: 'One second…',
     message: "Checking this video against your family's rules.",
     spinner: true,
@@ -454,7 +473,7 @@ async function gateEmbed(): Promise<void> {
   } else {
     void send({ type: 'REPORT_BLOCKED', targetKind: 'video', targetId: videoId, title });
     showOverlay({
-      emoji: '🌈',
+      icon: 'blocked',
       title: "This one isn't on your list",
       message:
         resp.verdict.decision === 'unsure'
@@ -463,7 +482,7 @@ async function gateEmbed(): Promise<void> {
       requestAccess: { targetKind: 'video', targetId: videoId, title },
       onRecheck: () => {
         void (async () => {
-          showOverlay({ emoji: '🔎', title: 'One second…', message: 'Checking with the latest rules.', spinner: true });
+          showOverlay({ icon: 'checking', title: 'One second…', message: 'Checking with the latest rules.', spinner: true });
           await send({ type: 'SYNC_POLICY' });
           void gateEmbed();
         })();
@@ -509,7 +528,7 @@ function showPauseOverlay(): void {
   holdPlayback();
   const until = new Date(pausedUntil!);
   showOverlay({
-    emoji: '⏸️',
+    icon: 'paused',
     title: 'YouTube is on a break',
     message: `A grown-up pressed pause. Back at ${until.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`,
   });
@@ -677,7 +696,7 @@ function startHeartbeat(): void {
         timeUp = true;
         holdPlayback();
         showOverlay({
-          emoji: '🌙',
+          icon: 'time',
           title: "That's all for today!",
           message: 'Your YouTube time is used up. It resets tomorrow — go build something cool!',
         });
@@ -699,7 +718,7 @@ function onNavigate(): void {
   if (timeUp) {
     holdPlayback();
     showOverlay({
-      emoji: '🌙',
+      icon: 'time',
       title: "That's all for today!",
       message: 'Your YouTube time is used up. It resets tomorrow — go build something cool!',
     });
@@ -709,7 +728,7 @@ function onNavigate(): void {
     if (state?.policy?.settings.blockShorts) {
       holdPlayback();
       showOverlay({
-        emoji: '🐢',
+        icon: 'blocked',
         title: 'No Shorts here',
         message: 'Shorts are turned off for this computer. How about a real video instead?',
       });
@@ -751,7 +770,7 @@ async function init(): Promise<void> {
     if (timeUp) {
       holdPlayback();
       showOverlay({
-        emoji: '🌙',
+        icon: 'time',
         title: "That's all for today!",
         message: 'Your YouTube time is used up. It resets tomorrow.',
       });

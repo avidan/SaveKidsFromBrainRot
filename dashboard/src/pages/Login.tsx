@@ -15,6 +15,7 @@ import {
 import { IconAlertCircle, IconCircleCheck, IconShieldCheck } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { api, getBackendUrl, setBackendUrl, setToken } from '../api';
+import Logo from '../Logo';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
@@ -83,9 +84,7 @@ export default function Login({ onAuthed }: { onAuthed: () => void }) {
     <Center mih="100vh" p="md" style={{ background: '#faf9f7' }}>
       <Stack w={420} maw="100%" gap="lg">
         <Group justify="center" gap="sm">
-          <ThemeIcon size={44} radius="md" variant="gradient" gradient={{ from: 'orange.5', to: 'orange.7' }}>
-            <IconShieldCheck size={28} />
-          </ThemeIcon>
+          <Logo size={44} />
           <div>
             <Title order={3} lh={1.1}>
               SaveKidsFromBrainRot

@@ -1,0 +1,16 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- SaveKidsFromBrainRot brand mark: a growing mind, protected.
+       Canonical source — extension icons and dashboard marks derive from this. -->
+  <defs>
+    <linearGradient id="skfbr-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="30" fill="url(#skfbr-tile)"/>
+  <path d="M64 15 L105 30 V62 C105 90 88 107 64 115 C40 107 23 90 23 62 V30 Z" fill="#ffffff"/>
+  <path d="M64 96 C64 96 64 78 64 70 M64 70 C64 52 52 42 34 42 C34 62 46 72 64 70 M64 62 C64 46 76 36 94 36 C94 56 82 66 64 62"
+        fill="none" stroke="#ea580c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M34 42 C34 62 46 72 62 70 C62 52 52 42 34 42 Z" fill="#ea580c"/>
+  <path d="M94 36 C94 56 82 66 66 62 C66 46 76 36 94 36 Z" fill="#f97316"/>
+</svg>

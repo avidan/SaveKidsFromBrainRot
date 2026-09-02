@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { api, getToken, setToken } from './api';
+import Logo from './Logo';
 import ActivityPage from './pages/ActivityPage';
 import ApiPage from './pages/ApiPage';
 import CriteriaPage from './pages/CriteriaPage';
@@ -214,9 +215,7 @@ export default function App() {
         <Container size="md" h="100%">
           <Group h="100%" justify="space-between" wrap="nowrap">
             <Group gap="sm" wrap="nowrap">
-              <ThemeIcon size={36} radius="md" variant="gradient" gradient={{ from: 'orange.5', to: 'orange.7' }}>
-                <IconShieldCheck size={22} />
-              </ThemeIcon>
+              <Logo size={36} />
               <Box visibleFrom="xs">
                 <Title order={4} lh={1.1}>
                   SaveKidsFromBrainRot

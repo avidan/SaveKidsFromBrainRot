@@ -38,6 +38,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Settings, TestResponse } from '../../../shared/types';
 import { DEFAULT_SETTINGS } from '../../../shared/types';
 import { api, getBackendUrl } from '../api';
+import Logo from '../Logo';
 import { STORE_URL } from '../mobileconfig';
 
 // A solid, opinionated starting point — parents edit the age and tweak from here.
@@ -143,9 +144,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
       <Stack gap="lg">
         <Group justify="space-between" align="flex-start">
           <Group gap="sm">
-            <ThemeIcon size={40} radius="md" variant="gradient" gradient={{ from: 'orange.5', to: 'orange.7' }}>
-              <IconShieldCheck size={24} />
-            </ThemeIcon>
+            <Logo size={40} />
             <div>
               <Title order={3} lh={1.1}>
                 Let's set up your family
