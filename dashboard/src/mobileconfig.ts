@@ -10,6 +10,9 @@
 
 export const EXTENSION_ID = 'fkegepdokopkgklbpbkphdemnbinjhoc';
 
+/** The extension's Chrome Web Store page (unlisted listing — link-only). */
+export const STORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`;
+
 // The extension is published on the Chrome Web Store (same ID as the earlier
 // self-hosted CRX), so force-installs pull from Google's update feed — no
 // per-family CRX hosting involved.

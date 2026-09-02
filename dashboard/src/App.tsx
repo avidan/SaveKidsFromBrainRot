@@ -30,6 +30,7 @@ import ApiPage from './pages/ApiPage';
 import CriteriaPage from './pages/CriteriaPage';
 import DevicesPage from './pages/DevicesPage';
 import Login from './pages/Login';
+import Onboarding from './pages/Onboarding';
 import OverridesPage from './pages/OverridesPage';
 import ReviewPage from './pages/ReviewPage';
 
@@ -154,6 +155,26 @@ export default function App() {
   const [authed, setAuthed] = useState<boolean>(() => !!getToken());
   const [tab, setTab] = useState('criteria');
   const [reviewCount, setReviewCount] = useState(0);
+  // First-launch wizard: shown while the family has no criteria yet.
+  const [onboarding, setOnboarding] = useState<'unknown' | 'show' | 'hide'>('unknown');
+
+  useEffect(() => {
+    if (!authed) return;
+    let flag: string | null = null;
+    try {
+      flag = localStorage.getItem('skfbr.onboarded');
+    } catch {
+      /* ignore */
+    }
+    if (flag) {
+      setOnboarding('hide');
+      return;
+    }
+    void api
+      .getPolicy()
+      .then((p) => setOnboarding(p.criteria.trim() === '' ? 'show' : 'hide'))
+      .catch(() => setOnboarding('hide'));
+  }, [authed]);
 
   useEffect(() => {
     if (!authed) return;
@@ -175,6 +196,8 @@ export default function App() {
   }, [authed, tab]);
 
   if (!authed) return <Login onAuthed={() => setAuthed(true)} />;
+  if (onboarding === 'unknown') return null; // one quick policy fetch decides
+  if (onboarding === 'show') return <Onboarding onDone={() => setOnboarding('hide')} />;
 
   const logout = async () => {
     try {

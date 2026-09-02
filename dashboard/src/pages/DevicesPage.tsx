@@ -22,7 +22,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { DeviceInfo } from '../../../shared/types';
 import { api, getBackendUrl } from '../api';
-import { buildMobileconfig } from '../mobileconfig';
+import { buildMobileconfig, STORE_URL } from '../mobileconfig';
 
 function lastSeenBadge(d: DeviceInfo) {
   if (!d.lastSeenAt) return <Badge size="sm" color="gray" variant="light">never seen</Badge>;
@@ -94,8 +94,12 @@ export default function DevicesPage() {
           <div>
             <Title order={4}>Add a device</Title>
             <Text size="sm" c="dimmed">
-              Two ways in: a <b>pairing code</b> (install the extension on the kid's laptop, open
-              its setup page, type the code — expires in 15 minutes), or the{' '}
+              Two ways in: a <b>pairing code</b> (
+              <a href={STORE_URL} target="_blank" rel="noreferrer">
+                install the extension
+              </a>{' '}
+              on the kid's laptop, open its setup page, type the code — expires in 15 minutes), or
+              the{' '}
               <b>Mac setup profile</b> — installed once on the kid's Mac, it force-installs the
               extension, pairs it, and disables incognito, no MDM needed. MDM fleets can mint a raw
               device token instead.

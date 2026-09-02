@@ -62,6 +62,13 @@ const SHORTS_ITEM_SELECTOR = [
 
 let overlayEl: HTMLElement | null = null;
 
+// Brand shield mark (inline so no web-accessible resources are needed).
+const BRAND_SVG =
+  '<svg width="15" height="15" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">' +
+  '<rect x="4" y="4" width="120" height="120" rx="28" fill="#ea580c"/>' +
+  '<path d="M64 18 L102 32 V62 C102 88 86 104 64 112 C42 104 26 88 26 62 V32 Z" fill="#fff"/>' +
+  '<path d="M54 46 L84 64 L54 82 Z" fill="#ea580c"/></svg>';
+
 function showOverlay(opts: {
   emoji: string;
   title: string;
@@ -73,6 +80,9 @@ function showOverlay(opts: {
   removeOverlay();
   const el = document.createElement('div');
   el.className = 'skfbr-overlay';
+  const card = document.createElement('div');
+  card.className = 'skfbr-card';
+
   const emoji = document.createElement('div');
   emoji.className = 'skfbr-emoji';
   emoji.textContent = opts.emoji;
@@ -80,31 +90,46 @@ function showOverlay(opts: {
   h1.textContent = opts.title;
   const p = document.createElement('p');
   p.textContent = opts.message;
-  el.append(emoji, h1, p);
+  card.append(emoji, h1, p);
+
   if (opts.spinner) {
     const spin = document.createElement('div');
     spin.className = 'skfbr-spinner';
-    el.append(spin);
+    card.append(spin);
   }
-  if (opts.onRecheck) {
-    const recheckBtn = document.createElement('button');
-    recheckBtn.textContent = 'Check again 🔄';
-    recheckBtn.addEventListener('click', () => {
-      recheckBtn.disabled = true;
-      opts.onRecheck!();
-    });
-    el.append(recheckBtn);
+  if (opts.requestAccess || opts.onRecheck) {
+    const actions = document.createElement('div');
+    actions.className = 'skfbr-actions';
+    if (opts.requestAccess) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Ask my grown-up';
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        btn.textContent = 'Asked! They’ll take a look 💌';
+        void send(({ type: 'REQUEST_ACCESS', ...opts.requestAccess! }) as BgRequest);
+      });
+      actions.append(btn);
+    }
+    if (opts.onRecheck) {
+      const recheckBtn = document.createElement('button');
+      recheckBtn.className = 'skfbr-ghost';
+      recheckBtn.textContent = 'Check again';
+      recheckBtn.addEventListener('click', () => {
+        recheckBtn.disabled = true;
+        opts.onRecheck!();
+      });
+      actions.append(recheckBtn);
+    }
+    card.append(actions);
   }
-  if (opts.requestAccess) {
-    const btn = document.createElement('button');
-    btn.textContent = 'Ask my grown-up 🙋';
-    btn.addEventListener('click', () => {
-      btn.disabled = true;
-      btn.textContent = 'Asked! They will take a look 💌';
-      void send(({ type: 'REQUEST_ACCESS', ...opts.requestAccess! }) as BgRequest);
-    });
-    el.append(btn);
-  }
+
+  const brand = document.createElement('div');
+  brand.className = 'skfbr-brand';
+  brand.innerHTML = BRAND_SVG;
+  brand.append(' Protected by SaveKidsFromBrainRot');
+  card.append(brand);
+
+  el.append(card);
   document.documentElement.append(el);
   overlayEl = el;
 }
