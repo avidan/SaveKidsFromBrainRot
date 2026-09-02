@@ -10,7 +10,15 @@ few dollars a month per family on the default model).
 - A **free Cloudflare account** ([dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up))
 - An **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com) → API keys)
 
-## 1. Deploy your stack (~10 minutes)
+## 1. Deploy your stack (~10 minutes, one command)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/avidan/SaveKidsFromBrainRot/main/install.sh | bash
+```
+
+That checks prerequisites, puts the code in `~/SaveKidsFromBrainRot`, and walks
+you through the deploy interactively. Prefer to do it by hand (or on Windows,
+where the one-liner needs WSL/Git Bash)? The equivalent is:
 
 ```bash
 git clone https://github.com/avidan/SaveKidsFromBrainRot.git

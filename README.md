@@ -9,9 +9,14 @@ need to touch the kid's laptop after a one-time pairing.
 Inspired by [yt-blocker-kids](https://github.com/Michailbul/yt-blocker-kids); see
 [PLAN.md](./PLAN.md) for the design.
 
-**Want this for your family?** Clone the repo and run `npm run setup` — it deploys
-the whole thing (API + dashboard, one URL) to your own free Cloudflare account in
-about ten minutes. Full walkthrough in [SETUP.md](./SETUP.md).
+**Want this for your family?** One command deploys the whole thing (API +
+dashboard, one URL) to your own free Cloudflare account in about ten minutes:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/avidan/SaveKidsFromBrainRot/main/install.sh | bash
+```
+
+Full walkthrough (including the kid's-computer side) in [SETUP.md](./SETUP.md).
 
 ## How it works
 
