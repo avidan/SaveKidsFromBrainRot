@@ -5,14 +5,19 @@ import {
   Card,
   CopyButton,
   Group,
+  List,
+  Loader,
+  Modal,
   Stack,
   Text,
   TextInput,
+  ThemeIcon,
   Title,
 } from '@mantine/core';
 import {
   IconBrandApple,
   IconCheck,
+  IconCircleCheck,
   IconCopy,
   IconDeviceLaptop,
   IconDownload,
@@ -38,6 +43,26 @@ export default function DevicesPage() {
   const [pairCode, setPairCode] = useState<{ code: string; expiresAt: number } | null>(null);
   const [minted, setMinted] = useState<{ name: string; token: string } | null>(null);
   const [profileFor, setProfileFor] = useState<string | null>(null);
+  const [profileInstalled, setProfileInstalled] = useState(false);
+
+  // While the confirm-installation modal is open, watch for the profiled Mac
+  // checking in — the device token exists from minting, so a fresh lastSeenAt
+  // means the profile installed and Chrome picked the extension up.
+  useEffect(() => {
+    if (!profileFor || profileInstalled) return;
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      void api
+        .getDevices()
+        .then(({ devices }) => {
+          setDevices(devices);
+          const d = devices.find((x) => x.name === profileFor);
+          if (d?.lastSeenAt && d.lastSeenAt >= startedAt - 60_000) setProfileInstalled(true);
+        })
+        .catch(() => undefined);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [profileFor, profileInstalled]);
 
   const load = async () => {
     const { devices } = await api.getDevices();
@@ -67,6 +92,7 @@ export default function DevicesPage() {
   const downloadProfile = async () => {
     setPairCode(null);
     setMinted(null);
+    setProfileInstalled(false);
     const name = deviceName || 'Kid laptop';
     const { deviceToken } = await api.mintDeviceToken(name);
     const backendUrl = getBackendUrl() || window.location.origin;
@@ -127,16 +153,69 @@ export default function DevicesPage() {
             </Button>
           </Group>
 
-          {profileFor && (
-            <Alert color="teal" icon={<IconCheck size={16} />} title={`Profile for “${profileFor}” downloaded`}>
-              On the kid's Mac: copy the file over, double-click it, then open{' '}
-              <b>System Settings → Privacy &amp; Security → Profiles</b>, double-click the pending
-              profile, and click <b>Install</b> (admin password required). Restart Chrome — the
-              extension installs and pairs itself, and incognito/guest mode are disabled. The file
-              contains this device's credential: treat it like a password and delete it after
-              installing. To undo later, remove the profile from the same screen.
-            </Alert>
-          )}
+          <Modal
+            opened={!!profileFor}
+            onClose={() => setProfileFor(null)}
+            title={
+              <Group gap="xs">
+                <IconBrandApple size={18} />
+                <Text fw={700}>Install the profile on “{profileFor}”</Text>
+              </Group>
+            }
+            size="lg"
+            centered
+          >
+            <Stack gap="sm">
+              <Text size="sm" c="dimmed">
+                The profile downloaded to this computer. Now install it on the kid's Mac:
+              </Text>
+              <List type="ordered" spacing="sm" size="sm">
+                <List.Item>
+                  <b>Move the file to the kid's Mac</b> — AirDrop, USB stick, or a shared drive.
+                  It's named <code>skfbr.*.mobileconfig</code>.
+                </List.Item>
+                <List.Item>
+                  On the kid's Mac, <b>double-click the file</b>. macOS will say the profile is
+                  ready to review — nothing is installed yet.
+                </List.Item>
+                <List.Item>
+                  Open <b>System Settings → Privacy &amp; Security → Profiles</b>. You'll see{' '}
+                  <b>SaveKidsFromBrainRot ({profileFor})</b> waiting under "Downloaded".
+                </List.Item>
+                <List.Item>
+                  <b>Double-click it → Install → Install again</b> to confirm. macOS asks for an
+                  administrator password.
+                </List.Item>
+                <List.Item>
+                  <b>Quit and reopen Chrome.</b> Within a minute the extension appears in the
+                  toolbar ("Installed by your administrator"), pairs itself, and incognito/guest
+                  mode are disabled.
+                </List.Item>
+              </List>
+              {profileInstalled ? (
+                <Alert color="teal" icon={<IconCircleCheck size={16} />}>
+                  <b>“{profileFor}” just checked in — the profile is installed and working.</b>{' '}
+                  YouTube on that Mac is now protected.
+                </Alert>
+              ) : (
+                <Alert color="gray" icon={<Loader size={14} color="orange" />}>
+                  Watching for “{profileFor}” to check in… this updates by itself the moment the
+                  profile is installed and Chrome restarts. Leave this open, or close it and watch
+                  the device list below.
+                </Alert>
+              )}
+              <Text size="xs" c="dimmed">
+                The file contains this device's credential — treat it like a password and delete it
+                from both Macs after installing. To undo everything later, remove the profile from
+                that same Profiles screen.
+              </Text>
+              <Group justify="flex-end">
+                <Button variant={profileInstalled ? 'filled' : 'default'} onClick={() => setProfileFor(null)}>
+                  {profileInstalled ? 'Done' : 'Close'}
+                </Button>
+              </Group>
+            </Stack>
+          </Modal>
           {pairCode && (
             <div>
               <div className="paircode">{pairCode.code}</div>
