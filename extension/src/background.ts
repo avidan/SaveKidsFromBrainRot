@@ -108,7 +108,14 @@ async function syncPolicy(): Promise<Policy | null> {
     }
     await set('policy', policy);
     return policy;
-  } catch {
+  } catch (e) {
+    // A parent revoked this device from the dashboard: the token is dead
+    // (server answers 401), so unpair cleanly. Network failures and server
+    // errors keep enforcing the last-synced policy instead.
+    if (e instanceof Error && e.message === 'backend 401') {
+      await chrome.storage.local.clear();
+      return null;
+    }
     return get<Policy>('policy'); // offline: keep enforcing the last-synced policy
   }
 }
@@ -150,7 +157,10 @@ chrome.runtime.onStartup.addListener(() => {
   void adoptManagedConfig().then(() => syncPolicy());
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === POLICY_ALARM) void syncPolicy();
+  // Re-adopt managed config first: if anything cleared local pairing on a
+  // managed device, this heals it within one alarm cycle instead of waiting
+  // for a Chrome restart.
+  if (alarm.name === POLICY_ALARM) void adoptManagedConfig().then(() => syncPolicy());
 });
 
 // ---------- verdict logic ----------
@@ -377,10 +387,8 @@ chrome.runtime.onMessage.addListener((message: BgRequest, _sender, sendResponse)
       case 'PAIR':
         sendResponse(await pair(message.backendUrl, message.code, message.deviceName));
         break;
-      case 'UNPAIR':
-        await chrome.storage.local.clear();
-        sendResponse({ ok: true });
-        break;
+      // Deliberately no UNPAIR handler: removal is a parent action (revoke in
+      // the dashboard), detected via 401 in syncPolicy.
     }
   })();
   return true; // async sendResponse

@@ -39,12 +39,8 @@ $('pair').addEventListener('click', () => {
   })();
 });
 
-$('unpair').addEventListener('click', () => {
-  void (async () => {
-    await chrome.runtime.sendMessage({ type: 'UNPAIR' });
-    showMessage('Device unpaired.', 'ok');
-    await refresh();
-  })();
-});
+// No self-serve unpair: removal is a parent action. Revoking the device from
+// the dashboard invalidates its token, and the extension unpairs itself on the
+// next policy sync.
 
 void refresh();

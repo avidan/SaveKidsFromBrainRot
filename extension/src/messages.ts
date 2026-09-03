@@ -9,8 +9,7 @@ export type BgRequest =
   | { type: 'REPORT_BLOCKED'; targetKind: 'channel' | 'video'; targetId: string; title: string }
   | { type: 'REPORT_WATCHED'; videoId: string; title: string }
   | { type: 'SYNC_POLICY' }
-  | { type: 'PAIR'; backendUrl: string; code: string; deviceName: string }
-  | { type: 'UNPAIR' };
+  | { type: 'PAIR'; backendUrl: string; code: string; deviceName: string };
 
 export interface StateResponse {
   paired: boolean;
