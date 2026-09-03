@@ -298,8 +298,9 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
     }
   }
 
-  if (limitMinutes === null) return { remainingSeconds: null, pausedUntil, activeMode };
-  return { remainingSeconds: Math.max(0, limitMinutes * 60 - usage.seconds), pausedUntil, activeMode };
+  const distractions = policy?.settings.distractions;
+  if (limitMinutes === null) return { remainingSeconds: null, pausedUntil, activeMode, distractions };
+  return { remainingSeconds: Math.max(0, limitMinutes * 60 - usage.seconds), pausedUntil, activeMode, distractions };
 }
 
 // ---------- pairing ----------

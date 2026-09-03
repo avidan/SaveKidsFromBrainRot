@@ -28,6 +28,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import type {
   CriteriaMode,
+  DistractionSettings,
   ExportBundle,
   NotificationSettings,
   ScheduleSettings,
@@ -35,6 +36,19 @@ import type {
   TestResponse,
 } from '../../../shared/types';
 import { DEFAULT_SETTINGS, MODEL_CHOICES } from '../../../shared/types';
+
+const DISTRACTION_TOGGLES: Array<{ key: keyof DistractionSettings; label: string; hint?: string }> = [
+  { key: 'hideHomeFeed', label: 'Hide the home feed entirely', hint: 'Kids search or use subscriptions instead of scrolling' },
+  { key: 'hideRelated', label: 'Hide "up next" sidebar on videos' },
+  { key: 'hideComments', label: 'Hide comments' },
+  { key: 'hideEndScreens', label: 'Hide end-of-video suggestions' },
+  { key: 'disableAutoplay', label: 'Keep autoplay off' },
+  { key: 'redirectHomeToSubs', label: 'Send youtube.com to Subscriptions' },
+  { key: 'hideNotifications', label: 'Hide the notification bell' },
+  { key: 'hideExplore', label: 'Hide Trending / Explore links' },
+  { key: 'hideChips', label: 'Hide category chips above feeds' },
+  { key: 'hideLiveChat', label: 'Hide live chat' },
+];
 import { api } from '../api';
 
 const EXAMPLE = `Allow educational content, science experiments, LEGO builds, calm crafts, and nature documentaries suitable for a 7-year-old.
@@ -83,6 +97,9 @@ export default function CriteriaPage() {
   const sched: ScheduleSettings = settings.schedule ?? DEFAULT_SETTINGS.schedule;
   const setSched = (patch: Partial<ScheduleSettings>) =>
     setSettings({ ...settings, schedule: { ...sched, ...patch } });
+  const distr: DistractionSettings = settings.distractions ?? DEFAULT_SETTINGS.distractions;
+  const setDistr = (patch: Partial<DistractionSettings>) =>
+    setSettings({ ...settings, distractions: { ...DEFAULT_SETTINGS.distractions, ...distr, ...patch } });
 
   useEffect(() => {
     void api
@@ -300,6 +317,34 @@ export default function CriteriaPage() {
               {msg.text}
             </Alert>
           )}
+        </Stack>
+      </Card>
+
+      <Card>
+        <Stack gap="sm">
+          <div>
+            <Title order={4}>Distractions</Title>
+            <Text size="sm" c="dimmed">
+              Remove YouTube's attention traps outright — no AI involved, applies within a minute,
+              and kids can't switch it back. Hiding the home feed and sidebar also cuts your AI
+              costs, since there's less content to judge.
+            </Text>
+          </div>
+          <Grid gutter={6}>
+            {DISTRACTION_TOGGLES.map((t) => (
+              <Grid.Col key={t.key} span={{ base: 12, sm: 6 }}>
+                <Switch
+                  label={t.label}
+                  description={t.hint}
+                  checked={distr[t.key]}
+                  onChange={(e) => setDistr({ [t.key]: e.currentTarget.checked })}
+                />
+              </Grid.Col>
+            ))}
+          </Grid>
+          <Text size="xs" c="dimmed">
+            Saved together with your rules via the button above.
+          </Text>
         </Stack>
       </Card>
 

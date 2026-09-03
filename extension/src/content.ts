@@ -1,4 +1,4 @@
-import type { ChannelMeta, Verdict } from '../../shared/types';
+import type { ChannelMeta, DistractionSettings, Verdict } from '../../shared/types';
 import type {
   BgRequest,
   ChannelVerdictsResponse,
@@ -491,6 +491,45 @@ async function gateEmbed(): Promise<void> {
   }
 }
 
+// ---------- distraction removal (Unhook-style, parent-controlled) ----------
+// Pure UI hiding via classes on <html>; the CSS rules live in content.css.
+// Settings arrive with the policy at init and refresh via the 30s heartbeat.
+
+let distractions: DistractionSettings | null = null;
+
+const DISTRACTION_CLASSES: Array<[keyof DistractionSettings, string]> = [
+  ['hideHomeFeed', 'skfbr-hide-home'],
+  ['hideRelated', 'skfbr-hide-related'],
+  ['hideComments', 'skfbr-hide-comments'],
+  ['hideEndScreens', 'skfbr-hide-endscreens'],
+  ['hideNotifications', 'skfbr-hide-bell'],
+  ['hideExplore', 'skfbr-hide-explore'],
+  ['hideLiveChat', 'skfbr-hide-chat'],
+  ['hideChips', 'skfbr-hide-chips'],
+];
+
+function applyDistractions(d: DistractionSettings | null | undefined): void {
+  if (!d) return;
+  distractions = d;
+  for (const [key, cls] of DISTRACTION_CLASSES) {
+    document.documentElement.classList.toggle(cls, !!d[key]);
+  }
+  maybeRedirectHome();
+}
+
+function maybeRedirectHome(): void {
+  if (!IS_EMBED && distractions?.redirectHomeToSubs && location.pathname === '/') {
+    location.replace('/feed/subscriptions');
+  }
+}
+
+/** Keep the player's autoplay toggle off — YouTube re-enables it quietly. */
+function guardAutoplay(): void {
+  if (!distractions?.disableAutoplay) return;
+  const toggle = document.querySelector<HTMLElement>('.ytp-autonav-toggle-button[aria-checked="true"]');
+  toggle?.click();
+}
+
 // ---------- mode flips ----------
 
 /** Wipe all filtering state and re-judge the page under the new mode. */
@@ -688,6 +727,7 @@ function startHeartbeat(): void {
       const resp = await send<HeartbeatResponse>({ type: 'HEARTBEAT', playing });
       pausedUntil = resp.pausedUntil;
       reconcilePause();
+      applyDistractions(resp.distractions);
       if (resp.activeMode && resp.activeMode !== currentMode) {
         currentMode = resp.activeMode;
         resetFiltering();
@@ -714,6 +754,7 @@ function onNavigate(): void {
     showPauseOverlay();
     return;
   }
+  maybeRedirectHome();
   removeOverlay();
   if (timeUp) {
     holdPlayback();
@@ -764,6 +805,7 @@ async function init(): Promise<void> {
   pausedUntil = state.policy?.pausedUntil ?? null;
   currentMode =
     state.policy?.weekendCriteria?.trim() && state.policy.activeMode === 'weekend' ? 'weekend' : 'week';
+  if (!IS_EMBED) applyDistractions(state.policy?.settings.distractions);
 
   if (IS_EMBED) {
     if (state.policy?.settings.filterEmbeds === false) return;
@@ -802,11 +844,13 @@ async function init(): Promise<void> {
     }
   }, 500);
 
-  // Twice a second: keep the pause state honest (expiry, overlay stomps) and
-  // watch the miniplayer — both cheap, both independent of navigation.
+  // Twice a second: keep the pause state honest (expiry, overlay stomps),
+  // watch the miniplayer, and hold autoplay off — all cheap, all independent
+  // of navigation.
   window.setInterval(() => {
     reconcilePause();
     guardMiniplayer();
+    guardAutoplay();
   }, 500);
 
   startHeartbeat();

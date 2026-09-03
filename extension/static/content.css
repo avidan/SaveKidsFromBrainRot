@@ -10,6 +10,57 @@
   display: none !important;
 }
 
+/* ---- Distraction removal (parent-controlled, classes set on <html>) ---- */
+
+/* Home feed: empty the grid (the AI filter handles it when this is off). */
+html.skfbr-hide-home ytd-browse[page-subtype="home"] ytd-rich-grid-renderer #contents,
+html.skfbr-hide-home ytd-browse[page-subtype="home"] ytd-feed-nudge-renderer {
+  display: none !important;
+}
+
+/* "Up next" related column on watch pages. */
+html.skfbr-hide-related ytd-watch-next-secondary-results-renderer,
+html.skfbr-hide-related #secondary #related {
+  display: none !important;
+}
+
+html.skfbr-hide-comments ytd-comments#comments {
+  display: none !important;
+}
+
+/* End-of-video suggestion wall, cards, and the autoplay countdown. */
+html.skfbr-hide-endscreens .ytp-endscreen-content,
+html.skfbr-hide-endscreens .ytp-ce-element,
+html.skfbr-hide-endscreens .ytp-autonav-endscreen-countdown-overlay {
+  display: none !important;
+}
+
+html.skfbr-hide-bell ytd-notification-topbar-button-renderer {
+  display: none !important;
+}
+
+/* Explore/Trending/Music/Gaming etc. in the sidebar (full and mini guide). */
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href="/feed/trending"]),
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href^="/feed/storefront"]),
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href^="/feed/podcasts"]),
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href^="/gaming"]),
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href^="/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ"]),
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href^="/channel/UC4R8DWoMoI7CAwX8_LjQHig"]),
+html.skfbr-hide-explore ytd-guide-entry-renderer:has(a[href^="/podcasts"]),
+html.skfbr-hide-explore ytd-mini-guide-entry-renderer:has(a[href="/feed/trending"]) {
+  display: none !important;
+}
+
+html.skfbr-hide-chat ytd-live-chat-frame#chat {
+  display: none !important;
+}
+
+/* Category chip bars above home/search/watch feeds. */
+html.skfbr-hide-chips ytd-feed-filter-chip-bar-renderer,
+html.skfbr-hide-chips yt-chip-cloud-renderer {
+  display: none !important;
+}
+
 /* ---- Full-screen overlay (checking / blocked / time's up / paused) ---- */
 
 .skfbr-overlay {

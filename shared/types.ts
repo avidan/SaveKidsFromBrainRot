@@ -58,6 +58,37 @@ export interface ScheduleSettings {
   weekendEndTime: string;
 }
 
+/**
+ * Unhook-style removal of YouTube's attention traps. Pure UI hiding on the
+ * device — no AI involved — but controlled from the parent dashboard and
+ * enforced by policy sync, so kids can't toggle it back.
+ */
+export interface DistractionSettings {
+  hideHomeFeed: boolean; // empty the home feed grid entirely
+  hideRelated: boolean; // the "up next" sidebar on watch pages
+  hideComments: boolean;
+  hideEndScreens: boolean; // suggested-video wall + cards at video end
+  hideNotifications: boolean; // the bell in the top bar
+  hideExplore: boolean; // Trending/Music/Gaming etc. in the sidebar
+  hideLiveChat: boolean;
+  hideChips: boolean; // the category chip bar above feeds
+  disableAutoplay: boolean; // keep the player's autoplay toggle off
+  redirectHomeToSubs: boolean; // youtube.com/ lands on Subscriptions instead
+}
+
+export const DEFAULT_DISTRACTIONS: DistractionSettings = {
+  hideHomeFeed: false,
+  hideRelated: false,
+  hideComments: false,
+  hideEndScreens: false,
+  hideNotifications: false,
+  hideExplore: false,
+  hideLiveChat: false,
+  hideChips: false,
+  disableAutoplay: false,
+  redirectHomeToSubs: false,
+};
+
 export interface Settings {
   model: string;
   failMode: 'open' | 'closed'; // what to do when backend/AI is unreachable
@@ -71,6 +102,7 @@ export interface Settings {
   filterEmbeds: boolean;
   notifications: NotificationSettings;
   schedule: ScheduleSettings;
+  distractions: DistractionSettings;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -83,6 +115,7 @@ export const DEFAULT_SETTINGS: Settings = {
   blockShorts: true,
   filterEmbeds: true,
   notifications: { ntfyTopic: null, email: null, onKidRequest: true, onAiFlag: false },
+  distractions: DEFAULT_DISTRACTIONS,
   schedule: {
     enabled: false,
     timezone: 'America/Los_Angeles',

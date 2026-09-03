@@ -74,6 +74,7 @@ async function loadPolicy(db: D1Database, familyId: string): Promise<Policy> {
     ...parsed,
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(parsed.schedule ?? {}) },
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(parsed.notifications ?? {}) },
+    distractions: { ...DEFAULT_SETTINGS.distractions, ...(parsed.distractions ?? {}) },
   };
   return {
     criteria: row?.criteria ?? '',
@@ -568,6 +569,7 @@ app.put('/dashboard/policy', async (c) => {
     ...settings,
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings?.schedule ?? {}) },
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(settings?.notifications ?? {}) },
+    distractions: { ...DEFAULT_SETTINGS.distractions, ...(settings?.distractions ?? {}) },
   };
   const before = await loadPolicy(c.env.DB, familyId);
   await c.env.DB.prepare(
@@ -774,6 +776,7 @@ app.post('/dashboard/import', async (c) => {
     ...bundle.settings,
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(bundle.settings?.schedule ?? {}) },
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(bundle.settings?.notifications ?? {}) },
+    distractions: { ...DEFAULT_SETTINGS.distractions, ...(bundle.settings?.distractions ?? {}) },
   };
   const db = c.env.DB;
   await db

@@ -40,6 +40,7 @@ export async function getPolicy(env: Env, familyId: string): Promise<Policy> {
     ...parsed,
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(parsed.schedule ?? {}) },
     notifications: { ...DEFAULT_SETTINGS.notifications, ...(parsed.notifications ?? {}) },
+    distractions: { ...DEFAULT_SETTINGS.distractions, ...(parsed.distractions ?? {}) },
   };
   return {
     criteria: row?.criteria ?? '',

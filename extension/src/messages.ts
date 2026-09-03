@@ -34,6 +34,8 @@ export interface HeartbeatResponse {
   pausedUntil: number | null;
   /** Which criteria mode is in force ('week' | 'weekend') — content re-filters when it flips. */
   activeMode: 'week' | 'weekend';
+  /** Unhook-style UI hiding toggles from the family policy. */
+  distractions?: import('../../shared/types').DistractionSettings;
 }
 
 export interface PairResult {
