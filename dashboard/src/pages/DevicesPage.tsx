@@ -94,15 +94,14 @@ export default function DevicesPage() {
           <div>
             <Title order={4}>Add a device</Title>
             <Text size="sm" c="dimmed">
-              Two ways in: a <b>pairing code</b> (
+              The easiest way in is the <b>Mac setup profile</b> — one file you install on the
+              kid's Mac that force-installs the extension, pairs it, and disables incognito, no
+              MDM needed. For non-Mac devices, use a <b>pairing code</b>:{' '}
               <a href={STORE_URL} target="_blank" rel="noreferrer">
                 install the extension
               </a>{' '}
-              on the kid's laptop, open its setup page, type the code — expires in 15 minutes), or
-              the{' '}
-              <b>Mac setup profile</b> — installed once on the kid's Mac, it force-installs the
-              extension, pairs it, and disables incognito, no MDM needed. MDM fleets can mint a raw
-              device token instead.
+              on the kid's laptop, open its setup page, and type the code (expires in 15 minutes).
+              MDM fleets can mint a raw device token instead.
             </Text>
           </div>
           <TextInput
@@ -113,16 +112,15 @@ export default function DevicesPage() {
             maw={340}
           />
           <Group gap="xs">
-            <Button leftSection={<IconTicket size={16} />} onClick={() => void createCode()}>
-              Generate pairing code
-            </Button>
             <Button
-              variant="light"
               leftSection={<IconBrandApple size={16} />}
               rightSection={<IconDownload size={14} />}
               onClick={() => void downloadProfile()}
             >
               Mac setup profile
+            </Button>
+            <Button variant="light" leftSection={<IconTicket size={16} />} onClick={() => void createCode()}>
+              Generate pairing code
             </Button>
             <Button variant="default" leftSection={<IconKey size={16} />} onClick={() => void mintToken()}>
               Mint MDM token
