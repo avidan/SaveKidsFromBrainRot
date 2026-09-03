@@ -517,6 +517,11 @@ function applyDistractions(d: DistractionSettings | null | undefined): void {
   maybeRedirectHome();
 }
 
+/** Quiet filtering: unvetted tiles invisible (default) vs blurred. */
+function applyQuiet(quiet: boolean | undefined): void {
+  document.documentElement.classList.toggle('skfbr-quiet', quiet !== false);
+}
+
 function maybeRedirectHome(): void {
   if (!IS_EMBED && distractions?.redirectHomeToSubs && location.pathname === '/') {
     location.replace('/feed/subscriptions');
@@ -728,6 +733,7 @@ function startHeartbeat(): void {
       pausedUntil = resp.pausedUntil;
       reconcilePause();
       applyDistractions(resp.distractions);
+      applyQuiet(resp.quietFiltering);
       if (resp.activeMode && resp.activeMode !== currentMode) {
         currentMode = resp.activeMode;
         resetFiltering();
@@ -805,7 +811,10 @@ async function init(): Promise<void> {
   pausedUntil = state.policy?.pausedUntil ?? null;
   currentMode =
     state.policy?.weekendCriteria?.trim() && state.policy.activeMode === 'weekend' ? 'weekend' : 'week';
-  if (!IS_EMBED) applyDistractions(state.policy?.settings.distractions);
+  if (!IS_EMBED) {
+    applyDistractions(state.policy?.settings.distractions);
+    applyQuiet(state.policy?.settings.quietFiltering);
+  }
 
   if (IS_EMBED) {
     if (state.policy?.settings.filterEmbeds === false) return;

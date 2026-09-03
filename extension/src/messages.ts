@@ -35,6 +35,8 @@ export interface HeartbeatResponse {
   activeMode: 'week' | 'weekend';
   /** Unhook-style UI hiding toggles from the family policy. */
   distractions?: import('../../shared/types').DistractionSettings;
+  /** Quiet filtering: hide unvetted tiles entirely instead of blurring them. */
+  quietFiltering?: boolean;
 }
 
 export interface PairResult {

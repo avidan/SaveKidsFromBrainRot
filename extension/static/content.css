@@ -5,6 +5,14 @@
   transition: filter 0.2s ease;
 }
 
+/* Quiet filtering (default): unvetted tiles are invisible instead of blurred.
+   Approved tiles simply appear — like YouTube's own lazy loading — so results
+   only ever show approved videos and nothing visibly goes missing. */
+html.skfbr-quiet .skfbr-pending {
+  display: none !important;
+  filter: none;
+}
+
 /* Blocked: remove from the page entirely. */
 .skfbr-blocked {
   display: none !important;

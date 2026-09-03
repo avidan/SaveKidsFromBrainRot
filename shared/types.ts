@@ -98,6 +98,13 @@ export interface Settings {
   /** Separate daily limit while weekend rules are active; null = same as dailyLimitMinutes. */
   weekendDailyLimitMinutes: number | null;
   blockShorts: boolean;
+  /**
+   * Quiet filtering: unvetted feed/search tiles are invisible until approved,
+   * so kids only ever see a list of approved videos — no blurred placeholders,
+   * no tiles vanishing, no sign anything was filtered (and no FOMO). When
+   * false, tiles blur while being checked instead.
+   */
+  quietFiltering: boolean;
   /** Gate YouTube players embedded on other websites, not just youtube.com. */
   filterEmbeds: boolean;
   notifications: NotificationSettings;
@@ -113,6 +120,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyLimitMinutes: null,
   weekendDailyLimitMinutes: null,
   blockShorts: true,
+  quietFiltering: true,
   filterEmbeds: true,
   notifications: { ntfyTopic: null, email: null, onKidRequest: true, onAiFlag: false },
   distractions: DEFAULT_DISTRACTIONS,

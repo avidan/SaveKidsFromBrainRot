@@ -302,6 +302,12 @@ export default function CriteriaPage() {
               checked={settings.checkAllowedChannels}
               onChange={(e) => setSettings({ ...settings, checkAllowedChannels: e.currentTarget.checked })}
             />
+            <Switch
+              label="Quiet filtering — only show content once it's approved"
+              description="No blurred placeholders: feeds and search results simply appear to contain only approved videos, so kids never see that something was filtered out"
+              checked={settings.quietFiltering}
+              onChange={(e) => setSettings({ ...settings, quietFiltering: e.currentTarget.checked })}
+            />
           </Stack>
 
           <Group mt={4}>
