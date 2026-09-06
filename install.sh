@@ -41,13 +41,13 @@ okay "git and Node $(node -v) found"
 # ---------- clone or update ----------
 
 if [ -d "$DIR/.git" ]; then
-  echo "  Updating existing install in $DIR…"
+  echo "  Updating existing install in ${DIR}…"
   git -C "$DIR" pull --ff-only || fail "Could not update $DIR — resolve the git state there and re-run."
   okay "repository up to date"
 elif [ -e "$DIR" ]; then
   fail "$DIR exists but is not a SaveKidsFromBrainRot checkout. Move it aside or set SKFBR_DIR."
 else
-  echo "  Cloning into $DIR…"
+  echo "  Cloning into ${DIR}…"
   git clone --depth 1 "$REPO" "$DIR"
   okay "repository cloned"
 fi
