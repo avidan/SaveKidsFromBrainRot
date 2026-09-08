@@ -19,30 +19,48 @@ npm install
 npm run build:safari     # → extension/dist-safari/
 ```
 
-## 2. Convert and run (Mac with Xcode 15+)
+## 2. One-time Mac prep
+
+1. Install **Xcode** from the Mac App Store (the full app — the converter and
+   iOS builds need it, not just command-line tools). Open it once, accept the
+   license, and install the **iOS platform** when prompted (Xcode → Settings →
+   Components if it doesn't ask).
+2. Xcode → **Settings → Accounts → + → Apple ID**. A free Apple ID suffices
+   for cable-testing on your own iPad (builds expire after 7 days); the $99/yr
+   Developer Program is needed for TestFlight / App Store distribution.
+
+## 3. Convert and run on an iPad
 
 ```bash
+cd ~/SaveKidsFromBrainRot
 xcrun safari-web-extension-converter extension/dist-safari \
   --project-location ios/SaveKidsFromBrainRot \
   --app-name "SaveKidsFromBrainRot" \
   --bundle-identifier com.savekidsfrombrainrot.ios \
-  --swift
+  --swift --ios-only
 ```
 
-Then in Xcode:
+Warnings about unsupported manifest keys are normal. Xcode opens the project
+automatically (or: `open ios/SaveKidsFromBrainRot/SaveKidsFromBrainRot.xcodeproj`).
 
-1. Open the generated project, select the iOS app target, and set your Team
-   under Signing & Capabilities (requires an Apple Developer Program
-   membership, $99/yr, for device installs and distribution).
-2. Plug in an iPad, select it as the run destination, and Run. The wrapper app
-   installs; open it once (it just explains how to enable the extension).
-3. On the iPad: **Settings → Apps → Safari → Extensions** (older iPadOS:
-   Settings → Safari → Extensions) → SaveKidsFromBrainRot → turn it **on**,
-   and set permissions for `youtube.com` and `m.youtube.com` to **Allow**
-   ("Always Allow" / "All Websites" is fine — the manifest only matches
-   YouTube).
+**Signing** — click the blue project icon at the top of the sidebar, then for
+BOTH targets (**SaveKidsFromBrainRot** and **SaveKidsFromBrainRot Extension**):
+Signing & Capabilities → tick *Automatically manage signing* → pick your Team.
 
-## 3. Pair and test
+**Run** — plug the iPad in via USB-C, tap *Trust This Computer* on it, set
+Xcode's run destination to the iPad, press ▶ (Cmd+R). Two normal first-run
+speed bumps:
+
+- iPad asks for **Developer Mode**: Settings → Privacy & Security → Developer
+  Mode → on → restart → confirm.
+- "Untrusted Developer" at launch: Settings → General → **VPN & Device
+  Management** → your Apple ID → Trust. Run again.
+
+**Enable the extension** — on the iPad: Settings → **Apps → Safari →
+Extensions** (older iPadOS: Settings → Safari → Extensions) →
+SaveKidsFromBrainRot → on → set `youtube.com` and `m.youtube.com` to **Allow**.
+
+## 4. Pair and test
 
 1. In Safari, tap the puzzle/extension button in the address bar →
    SaveKidsFromBrainRot → the options page opens.
@@ -62,7 +80,7 @@ Known platform differences (already handled in code, listed for awareness):
   the 60-second heartbeat refresh while YouTube is open is unaffected.
 - **Parent-revoke unpairing** works the same as on desktop (401 → self-unpair).
 
-## 4. Lock the iPad down (the part that makes it real)
+## 5. Lock the iPad down (the part that makes it real)
 
 Via Mosyle (supervised iPad) or, minimally, Screen Time with a parent passcode:
 
@@ -76,7 +94,7 @@ Via Mosyle (supervised iPad) or, minimally, Screen Time with a parent passcode:
   unavailable, a Screen Time passcode on Settings changes is the fallback
   (weaker: verify the kid can't reach Settings → Safari → Extensions).
 
-## 5. Distribute (beyond your own cable)
+## 6. Distribute (beyond your own cable)
 
 - **TestFlight** — easiest for family + friends (up to 10k testers, 90-day
   builds, no review beyond a light beta check).
