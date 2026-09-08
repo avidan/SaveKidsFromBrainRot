@@ -1,11 +1,12 @@
 import type { StateResponse } from './messages';
+import { ext } from './ext';
 
 async function main(): Promise<void> {
   const statusEl = document.getElementById('status')!;
   const timerEl = document.getElementById('timer')!;
   const setupLink = document.getElementById('setup-link')!;
 
-  const state = (await chrome.runtime.sendMessage({ type: 'GET_STATE' })) as StateResponse;
+  const state = (await ext.runtime.sendMessage({ type: 'GET_STATE' })) as StateResponse;
 
   if (!state.paired) {
     statusEl.textContent = 'Not set up yet.';

@@ -15,6 +15,7 @@ import type {
   VideoVerdictResponse,
 } from './messages';
 import { fetchVideoData } from './metadata';
+import { ext } from './ext';
 
 interface Config {
   backendUrl: string;
@@ -34,11 +35,11 @@ const POLICY_ALARM = 'skfbr-policy-sync';
 // ---------- storage helpers ----------
 
 async function get<T>(key: string): Promise<T | null> {
-  const obj = await chrome.storage.local.get(key);
+  const obj = await ext.storage.local.get(key);
   return (obj[key] as T) ?? null;
 }
 async function set(key: string, value: unknown): Promise<void> {
-  await chrome.storage.local.set({ [key]: value });
+  await ext.storage.local.set({ [key]: value });
 }
 
 // Local verdict caches are scoped by criteria mode ('week' | 'weekend'),
@@ -97,7 +98,7 @@ async function syncPolicy(): Promise<Policy | null> {
     const previous = await get<Policy>('policy');
     if (previous && previous.updatedAt !== policy.updatedAt) {
       // Policy changed (criteria edits clear server caches too) — drop local caches.
-      await chrome.storage.local.remove([
+      await ext.storage.local.remove([
         'channelVerdicts',
         'videoVerdicts',
         'channelVerdicts:week',
@@ -113,7 +114,7 @@ async function syncPolicy(): Promise<Policy | null> {
     // (server answers 401), so unpair cleanly. Network failures and server
     // errors keep enforcing the last-synced policy instead.
     if (e instanceof Error && e.message === 'backend 401') {
-      await chrome.storage.local.clear();
+      await ext.storage.local.clear();
       return null;
     }
     return get<Policy>('policy'); // offline: keep enforcing the last-synced policy
@@ -125,7 +126,7 @@ async function syncPolicy(): Promise<Policy | null> {
 // with zero on-device setup.
 async function adoptManagedConfig(): Promise<void> {
   try {
-    const managed = await chrome.storage.managed.get(['backendUrl', 'deviceToken', 'deviceName']);
+    const managed = await ext.storage.managed.get(['backendUrl', 'deviceToken', 'deviceName']);
     const backendUrl = typeof managed.backendUrl === 'string' ? managed.backendUrl.trim() : '';
     const deviceToken = typeof managed.deviceToken === 'string' ? managed.deviceToken.trim() : '';
     if (!backendUrl || !deviceToken) return;
@@ -144,19 +145,32 @@ async function adoptManagedConfig(): Promise<void> {
   }
 }
 
-chrome.storage.onChanged.addListener((_changes, area) => {
+ext.storage.onChanged.addListener((_changes, area) => {
   if (area === 'managed') void adoptManagedConfig();
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create(POLICY_ALARM, { periodInMinutes: 5 });
+// Periodic policy sync. Chrome provides chrome.alarms; Safari's support varies
+// by version, so fall back to a plain interval in the background context there
+// (Safari uses a background page rather than a service worker for us, so the
+// interval survives; the content-script heartbeat also refreshes the policy
+// every 60s while a YouTube tab is open, which is the enforcement-critical path).
+function schedulePolicySync(): void {
+  if (ext.alarms?.create) {
+    ext.alarms.create(POLICY_ALARM, { periodInMinutes: 5 });
+  } else {
+    setInterval(() => void adoptManagedConfig().then(() => syncPolicy()), 5 * 60_000);
+  }
+}
+
+ext.runtime.onInstalled.addListener(() => {
+  schedulePolicySync();
   void adoptManagedConfig().then(() => syncPolicy());
 });
-chrome.runtime.onStartup.addListener(() => {
-  chrome.alarms.create(POLICY_ALARM, { periodInMinutes: 5 });
+ext.runtime.onStartup.addListener(() => {
+  schedulePolicySync();
   void adoptManagedConfig().then(() => syncPolicy());
 });
-chrome.alarms.onAlarm.addListener((alarm) => {
+ext.alarms?.onAlarm.addListener((alarm) => {
   // Re-adopt managed config first: if anything cleared local pairing on a
   // managed device, this heals it within one alarm cycle instead of waiting
   // for a Chrome restart.
@@ -343,7 +357,7 @@ async function pair(backendUrl: string, code: string, deviceName: string): Promi
 
 // ---------- message router ----------
 
-chrome.runtime.onMessage.addListener((message: BgRequest, _sender, sendResponse) => {
+ext.runtime.onMessage.addListener((message: BgRequest, _sender, sendResponse) => {
   void (async () => {
     switch (message.type) {
       case 'GET_STATE': {

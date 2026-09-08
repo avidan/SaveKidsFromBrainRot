@@ -6,9 +6,10 @@ import type {
   StateResponse,
   VideoVerdictResponse,
 } from './messages';
+import { ext } from './ext';
 
 function send<T>(message: BgRequest): Promise<T> {
-  return chrome.runtime.sendMessage(message) as Promise<T>;
+  return ext.runtime.sendMessage(message) as Promise<T>;
 }
 
 // ---------- state ----------
@@ -48,6 +49,11 @@ const ITEM_SELECTOR = [
   // Newer YouTube markup: small/compact cards on home, related, and shelves.
   'yt-lockup-view-model',
   'ytd-rich-grid-media',
+  // Mobile web (m.youtube.com — Safari on iPadOS when not in desktop mode).
+  'ytm-rich-item-renderer',
+  'ytm-video-with-context-renderer',
+  'ytm-compact-video-renderer',
+  'ytm-media-item',
 ].join(',');
 
 // Shorts cards (individual small tiles, various generations of markup).
@@ -706,7 +712,7 @@ function waitForChannelRef(timeoutMs: number): Promise<string | null> {
     const started = Date.now();
     const tick = () => {
       const link = document.querySelector<HTMLAnchorElement>(
-        'ytd-watch-metadata ytd-channel-name a[href], ytd-video-owner-renderer a[href]',
+        'ytd-watch-metadata ytd-channel-name a[href], ytd-video-owner-renderer a[href], ytm-slim-owner-renderer a[href]',
       );
       const ref = channelRefFromHref(link?.getAttribute('href') ?? null);
       if (ref) return resolve(ref);

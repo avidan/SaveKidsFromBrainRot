@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "pack:store": "node scripts/pack-store.mjs"
+    "pack:store": "node scripts/pack-store.mjs",
+    "build:safari": "node scripts/build.mjs --safari"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",

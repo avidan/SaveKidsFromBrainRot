@@ -1,9 +1,10 @@
 import type { PairResult, StateResponse } from './messages';
+import { ext } from './ext';
 
 const $ = (id: string) => document.getElementById(id)!;
 
 async function refresh(): Promise<void> {
-  const state = (await chrome.runtime.sendMessage({ type: 'GET_STATE' })) as StateResponse;
+  const state = (await ext.runtime.sendMessage({ type: 'GET_STATE' })) as StateResponse;
   $('paired-view').hidden = !state.paired;
   $('setup-view').hidden = state.paired;
 }
@@ -24,7 +25,7 @@ $('pair').addEventListener('click', () => {
       return;
     }
     showMessage('Pairing…', 'ok');
-    const result = (await chrome.runtime.sendMessage({
+    const result = (await ext.runtime.sendMessage({
       type: 'PAIR',
       backendUrl,
       code,

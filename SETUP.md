@@ -102,3 +102,10 @@ npm run deploy
 - Anthropic API: channel verdicts are cached for 30 days and video verdicts
   forever, so costs settle down fast after the first week. Haiku (the default
   in the model dropdown) is the cheapest; expect single-digit dollars monthly.
+
+## iPads
+
+The extension also builds as a Safari Web Extension for iPadOS — same backend,
+same pairing codes, same dashboard. Packaging requires a Mac with Xcode; the
+full walkthrough (build, convert, test, and the essential iPad lockdown) is in
+[ios/README.md](./ios/README.md).
