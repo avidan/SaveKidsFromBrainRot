@@ -8,7 +8,7 @@ Apple's packaging, which requires a Mac with Xcode — these are those steps.
 
 **The iPad reality check first:** an extension can only filter Safari. A real
 iPad deployment is the extension **plus** a lockdown that removes every other
-path to YouTube (the YouTube app, other browsers). Section 4 covers that; skip
+path to YouTube (the YouTube app, other browsers). Section 5 covers that; skip
 it and the filter is decorative.
 
 ## 1. Build the Safari package (any machine)
