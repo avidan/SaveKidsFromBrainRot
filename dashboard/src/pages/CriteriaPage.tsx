@@ -38,7 +38,7 @@ import type {
   Settings,
   TestResponse,
 } from '../../../shared/types';
-import { DEFAULT_SETTINGS, MODEL_CHOICES, PROVIDER_INFO, providerForModel } from '../../../shared/types';
+import { DEFAULT_SETTINGS, MODEL_CHOICES, PROVIDER_INFO, isContributorModel, providerForModel } from '../../../shared/types';
 
 const DISTRACTION_TOGGLES: Array<{ key: keyof DistractionSettings; label: string; hint?: string }> = [
   { key: 'hideHomeFeed', label: 'Hide the home feed entirely', hint: 'Kids search or use subscriptions instead of scrolling' },
@@ -310,6 +310,13 @@ export default function CriteriaPage() {
                 onChange={(v) => v && setSettings({ ...settings, model: v })}
                 allowDeselect={false}
               />
+              {isContributorModel(settings.model) && (
+                <Alert color="yellow" icon={<IconAlertCircle size={16} />} mt="xs">
+                  Contributor tier: Meta may use prompts and completions — including your kids'
+                  activity and your criteria — to train future models, in exchange for ~95% lower
+                  pricing. Don't use it if that trade isn't acceptable for your family.
+                </Alert>
+              )}
             </Grid.Col>
             <Grid.Col span={{ base: 12, sm: 6 }}>
               <NumberInput

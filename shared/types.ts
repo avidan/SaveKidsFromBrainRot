@@ -138,12 +138,26 @@ export const DEFAULT_SETTINGS: Settings = {
 export type AiProvider = 'anthropic' | 'meta';
 
 /** Models offered in the dashboard dropdown. */
-export const MODEL_CHOICES: Array<{ id: string; label: string; provider: AiProvider }> = [
+export const MODEL_CHOICES: Array<{ id: string; label: string; provider: AiProvider; contributor?: boolean }> = [
   { id: 'claude-opus-5', label: 'Claude Opus 5 — most capable (recommended)', provider: 'anthropic' },
   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced quality and cost', provider: 'anthropic' },
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 — fastest and cheapest', provider: 'anthropic' },
   { id: 'muse-spark-1.1', label: 'Muse Spark 1.1 — Meta (via Meta Model API)', provider: 'meta' },
+  {
+    id: 'muse-spark-1.3-contributor',
+    label: 'Muse Spark 1.3 Contributor — Meta, ~95% cheaper, shares data for training',
+    provider: 'meta',
+    contributor: true,
+  },
 ];
+
+/**
+ * Whether the model is on a contributor tier: prompts and completions are used
+ * to train the provider's future models in exchange for discounted pricing.
+ */
+export function isContributorModel(model: string): boolean {
+  return MODEL_CHOICES.some((m) => m.id === model && m.contributor);
+}
 
 /**
  * Provider for a model id. Custom/unknown ids are assumed Anthropic-compatible,
