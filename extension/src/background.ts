@@ -30,6 +30,11 @@ interface Usage {
 }
 
 const HEARTBEAT_SECONDS = 30;
+/**
+ * Max watch time credited for a single heartbeat gap. Covers a suspended
+ * laptop / restarted service worker without banking phantom hours.
+ */
+const HEARTBEAT_MAX_CATCHUP_MS = 90_000;
 const POLICY_ALARM = 'skfbr-policy-sync';
 
 // ---------- storage helpers ----------
@@ -313,14 +318,22 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
   let usage = (await get<Usage>('usage')) ?? { date: today(), seconds: 0 };
   if (usage.date !== today()) usage = { date: today(), seconds: 0 }; // midnight reset
 
+  // Credit actual elapsed time instead of a fixed 30s: a suspended laptop or
+  // a killed service worker can gap heartbeats, and the old fixed increment
+  // silently undercounted those stretches. The catch-up is capped so a long
+  // gap (kid wasn't necessarily watching) can't bank phantom hours.
+  const nowMs = Date.now();
+  const lastBeat = (await get<number>('lastBeat')) ?? 0;
   if (playing) {
-    usage.seconds += HEARTBEAT_SECONDS;
+    const elapsedMs = lastBeat > 0 ? Math.min(nowMs - lastBeat, HEARTBEAT_MAX_CATCHUP_MS) : HEARTBEAT_SECONDS * 1000;
+    usage.seconds += Math.max(1, Math.round(elapsedMs / 1000));
     await set('usage', usage);
     // Report time to the activity feed every 5 minutes of watching.
     if (usage.seconds % 300 < HEARTBEAT_SECONDS) {
       void postEvents([{ type: 'time_used', detail: { secondsToday: usage.seconds } }]);
     }
   }
+  await set('lastBeat', nowMs);
 
   const distractions = policy?.settings.distractions;
   const quietFiltering = policy?.settings.quietFiltering ?? true;
