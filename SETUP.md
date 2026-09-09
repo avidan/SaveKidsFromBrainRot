@@ -127,9 +127,9 @@ npm run deploy
   forever, so costs settle down fast after the first week. Haiku (the default
   in the model dropdown) is the cheapest; expect single-digit dollars monthly.
 
-## iPads
+## iPads & iPhones
 
-The extension also builds as a Safari Web Extension for iPadOS — same backend,
-same pairing codes, same dashboard. Packaging requires a Mac with Xcode; the
-full walkthrough (build, convert, test, and the essential iPad lockdown) is in
-[ios/README.md](./ios/README.md).
+The extension also builds as a Safari Web Extension for iPadOS and iOS — same
+backend, same pairing codes, same dashboard, one build for both devices.
+Packaging requires a Mac with Xcode; the full walkthrough (build, convert,
+test, and the essential device lockdown) is in [ios/README.md](./ios/README.md).
