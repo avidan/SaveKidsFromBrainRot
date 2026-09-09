@@ -93,6 +93,7 @@ export interface Settings {
   model: string;
   failMode: 'open' | 'closed'; // what to do when backend/AI is unreachable
   channelTtlDays: number; // re-evaluate channels after this many days
+  videoTtlDays: number; // re-evaluate videos after this many days
   checkAllowedChannels: boolean; // run lightweight video checks even on allowed channels
   dailyLimitMinutes: number | null; // null = no timer
   /** Separate daily limit while weekend rules are active; null = same as dailyLimitMinutes. */
@@ -116,6 +117,7 @@ export const DEFAULT_SETTINGS: Settings = {
   model: 'claude-opus-5',
   failMode: 'closed',
   channelTtlDays: 30,
+  videoTtlDays: 90,
   checkAllowedChannels: true,
   dailyLimitMinutes: null,
   weekendDailyLimitMinutes: null,

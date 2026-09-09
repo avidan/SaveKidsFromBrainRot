@@ -265,7 +265,9 @@ async function evaluateVideoHandler(
 
   const cacheKey = `videoVerdicts:${cacheMode(policy)}`;
   const cache = (await get<Record<string, Verdict>>(cacheKey)) ?? {};
-  if (cache[videoId]) return { verdict: cache[videoId] };
+  const cached = cache[videoId];
+  const videoTtlMs = (policy?.settings.videoTtlDays ?? 90) * 24 * 60 * 60 * 1000;
+  if (cached && Date.now() - cached.evaluatedAt < videoTtlMs) return { verdict: cached };
 
   const fetched = await fetchVideoData(videoId);
   const meta = fetched?.meta ?? {
