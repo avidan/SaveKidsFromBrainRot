@@ -72,6 +72,30 @@ interface ClaudeResult {
   error?: string;
 }
 
+// The Anthropic key comes from the wrangler secret when set, else from the
+// dashboard-configured value in D1 (one-click deploys have no secrets).
+// Cached per isolate for a minute so evaluations don't add a D1 read each.
+let keyCache: { value: string | null; at: number } | null = null;
+
+export function primeKeyCache(value: string | null): void {
+  keyCache = { value, at: Date.now() };
+}
+
+export async function anthropicKey(env: Env): Promise<string | null> {
+  if (env.ANTHROPIC_API_KEY) return env.ANTHROPIC_API_KEY;
+  if (keyCache && Date.now() - keyCache.at < 60_000) return keyCache.value;
+  let value: string | null = null;
+  try {
+    const row = await env.DB.prepare("SELECT value FROM server_config WHERE key = 'anthropic_api_key'")
+      .first<{ value: string }>();
+    value = row?.value ?? null;
+  } catch {
+    value = null; // table may not exist yet on older deployments
+  }
+  keyCache = { value, at: Date.now() };
+  return value;
+}
+
 // Not every model accepts every parameter — sending an unsupported one is a
 // 400 and the evaluation fails outright. Gate by model family:
 //  - effort: supported on the Opus/Sonnet/Fable 5 lines; ERRORS on Haiku 4.5.
@@ -91,6 +115,14 @@ async function callClaude(
   schema: object,
   effort?: 'low' | 'medium' | 'high',
 ): Promise<ClaudeResult> {
+  const apiKey = await anthropicKey(env);
+  if (!apiKey) {
+    return {
+      ok: false,
+      refused: false,
+      error: 'No Anthropic API key configured — open your dashboard and add one under AI connection',
+    };
+  }
   const useFallbacks = supportsFallbacks(model);
   let res: Response;
   try {
@@ -98,7 +130,7 @@ async function callClaude(
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': env.ANTHROPIC_API_KEY,
+      'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
       // Server-side fallback: if safety classifiers decline (possible on
       // claude-opus-5), the API re-runs the request on the recommended

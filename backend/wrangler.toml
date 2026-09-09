@@ -5,6 +5,19 @@ compatibility_date = "2026-06-01"
 [observability]
 enabled = true
 
+# Build the dashboard before every deploy so [assets] always has a fresh
+# dist/ — this is what makes the Deploy-to-Cloudflare button (Workers Builds
+# CI) work on a fresh fork, and it keeps local `wrangler deploy` honest too.
+[build]
+command = "npm install --prefix ../dashboard --no-audit --no-fund && npm run build --prefix ../dashboard"
+
+# Import schema.sql as a string so the Worker can self-apply it to an empty
+# database on first request (the button provisions D1 but can't run SQL).
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+fallthrough = true
+
 # The Worker also serves the parent dashboard as static assets, so one
 # `wrangler deploy` ships the whole product. Build the dashboard first
 # (npm run build in ../dashboard) — deploy fails if dist/ is missing.

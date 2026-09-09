@@ -235,6 +235,14 @@ export interface ApiKeyInfo {
   lastUsedAt: number | null;
 }
 
+/** Where the server's Anthropic API key comes from (GET /dashboard/ai-key). */
+export interface AiKeyStatus {
+  configured: boolean;
+  /** 'secret' = wrangler secret (wins, read-only from the dashboard); 'dashboard' = stored in D1. */
+  source: 'secret' | 'dashboard' | null;
+  last4: string | null;
+}
+
 export interface ScreenTimeEntry {
   deviceName: string;
   secondsToday: number;

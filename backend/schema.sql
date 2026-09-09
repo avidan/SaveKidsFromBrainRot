@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS api_keys (
   revoked INTEGER NOT NULL DEFAULT 0
 );
 
+-- Instance-level settings (single-family server). Currently holds the
+-- Anthropic API key when it's configured from the dashboard instead of a
+-- wrangler secret — the secret, if set, always wins.
+CREATE TABLE IF NOT EXISTS server_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS password_resets (
   family_id TEXT PRIMARY KEY,
   code TEXT NOT NULL,

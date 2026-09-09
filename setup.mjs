@@ -171,8 +171,8 @@ if (key) {
   if (put.status === 0) ok('key stored as a Worker secret (never leaves Cloudflare)');
   else die('Storing the secret failed — run "npx wrangler secret put ANTHROPIC_API_KEY" in backend/ yourself.');
 } else {
-  console.log('  Skipped. Filtering will fail-safe (everything "unsure") until you set it:');
-  console.log('    cd backend && npx wrangler secret put ANTHROPIC_API_KEY');
+  console.log('  Skipped. No problem — the dashboard asks for the key during onboarding');
+  console.log('  (or set it as a secret: cd backend && npx wrangler secret put ANTHROPIC_API_KEY).');
 }
 
 // ---------- done ----------

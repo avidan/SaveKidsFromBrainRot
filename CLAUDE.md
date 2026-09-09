@@ -119,9 +119,20 @@ all import it; change shapes there first.
   deployments need explicit `ALTER`/migration via
   `npx wrangler d1 execute skfbr --remote --command "..."`. Verdict tables are
   pure caches — drop/recreate is a legal migration.
-- Secrets: `ANTHROPIC_API_KEY` (required), `RESEND_API_KEY`/`NOTIFY_FROM`
+- Secrets: `ANTHROPIC_API_KEY` (optional — when unset, the key entered in the
+  dashboard is read from the `server_config` D1 table via `anthropicKey(env)`
+  in `claude.ts`, cached 60s per isolate; the secret, when present, always
+  wins and makes `/dashboard/ai-key` read-only), `RESEND_API_KEY`/`NOTIFY_FROM`
   (email, optional), `OPEN_SIGNUPS` (optional). Notifications also go via
   ntfy.sh (topic stored in settings; topic = secret).
+- **One-click deploy** (Deploy-to-Cloudflare button in README/SETUP): the
+  button forks the repo, provisions an empty D1, and runs Workers Builds with
+  wrangler.toml's `[build]` hook (which builds the dashboard). The Worker
+  self-applies `schema.sql` on first request when the `families` table is
+  missing (middleware in `index.ts`; schema imported as text via the
+  `[[rules]]` Text entry) — so keep `schema.sql` splittable on `;` with only
+  full-line `--` comments. The root-directory prompt in the button flow must
+  be answered `backend`.
 
 ## Build / verify / deploy
 
@@ -179,10 +190,14 @@ all import it; change shapes there first.
 
 ## Current state / roadmap
 
-Shipped: everything above, first-run onboarding wizard, install-confirmation
-modal, one-command installer (`install.sh` / `npm run setup`), brand
-(sprout-in-shield, `logo.svg` canonical), CWS listing (unlisted) at v0.2.10.
-Open threads: real-iPad validation of the Safari build (mobile-markup selectors
-and background lifecycle are the untested parts); moving the owner's Mosyle
-Macs from the legacy feed to the store build, then retiring crx packing;
-per-mode distraction toggles is a cheap natural extension.
+Shipped: everything above, first-run onboarding wizard (opens with a
+Connect-the-AI key step), install-confirmation modal, one-command installer
+(`install.sh` / `npm run setup`), Deploy-to-Cloudflare button (self-applying
+schema + dashboard-entered API key), brand (sprout-in-shield, `logo.svg`
+canonical), CWS listing (unlisted) at v0.2.10.
+Open threads: a real click-through of the Deploy button flow (the monorepo
+root-directory behavior is unverified from the sandbox); real-iPad validation
+of the Safari build (mobile-markup selectors and background lifecycle are the
+untested parts); moving the owner's Mosyle Macs from the legacy feed to the
+store build, then retiring crx packing; per-mode distraction toggles is a
+cheap natural extension.

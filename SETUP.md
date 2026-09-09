@@ -6,11 +6,26 @@ few dollars a month per family on the default model).
 
 ## What you need
 
-- **Node.js 18+** on your computer ([nodejs.org](https://nodejs.org))
 - A **free Cloudflare account** ([dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up))
-- An **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com) → API keys)
+- An **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com) → API keys —
+  you can also create it later; the dashboard asks for it during onboarding)
+- For the terminal path only: **Node.js 18+** ([nodejs.org](https://nodejs.org))
 
-## 1. Deploy your stack (~10 minutes, one command)
+## 1. Deploy your stack
+
+### Easiest: one click, no terminal
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/avidan/SaveKidsFromBrainRot)
+
+That button forks the project to your GitHub account, creates the database, and
+deploys the Worker + dashboard on your Cloudflare account. If it asks for the
+project's **root directory**, enter `backend`. When it finishes, open the
+`https://skfbr-backend.<your-subdomain>.workers.dev` URL it gives you — the
+database sets itself up on first visit, and the onboarding wizard collects your
+Anthropic API key. Bonus: because it's a fork, Cloudflare redeploys
+automatically whenever you pull in updates on GitHub ("Sync fork").
+
+### Or: one command in the terminal
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/avidan/SaveKidsFromBrainRot/main/install.sh | bash

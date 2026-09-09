@@ -7,6 +7,7 @@ import {
   Grid,
   Group,
   NumberInput,
+  PasswordInput,
   SegmentedControl,
   Select,
   Stack,
@@ -23,10 +24,12 @@ import {
   IconConfetti,
   IconDownload,
   IconFlask,
+  IconKey,
   IconUpload,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import type {
+  AiKeyStatus,
   CriteriaMode,
   DistractionSettings,
   ExportBundle,
@@ -91,6 +94,11 @@ export default function CriteriaPage() {
   const [backupMsg, setBackupMsg] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
 
+  const [aiStatus, setAiStatus] = useState<AiKeyStatus | null>(null);
+  const [aiKeyInput, setAiKeyInput] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
+  const [aiMsg, setAiMsg] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
+
   const notif: NotificationSettings = settings.notifications ?? DEFAULT_SETTINGS.notifications;
   const setNotif = (patch: Partial<NotificationSettings>) =>
     setSettings({ ...settings, notifications: { ...notif, ...patch } });
@@ -116,7 +124,35 @@ export default function CriteriaPage() {
         setLoaded(true);
       })
       .catch(() => setMsg({ text: 'Could not load policy', kind: 'error' }));
+    void api
+      .getAiKey()
+      .then(setAiStatus)
+      .catch(() => undefined);
   }, []);
+
+  const saveAiKey = async () => {
+    setSavingKey(true);
+    setAiMsg(null);
+    try {
+      setAiStatus(await api.putAiKey(aiKeyInput));
+      setAiKeyInput('');
+      setAiMsg({ text: 'Key saved — filtering uses it immediately.', kind: 'ok' });
+    } catch (e) {
+      setAiMsg({ text: e instanceof Error ? e.message : 'Could not save the key', kind: 'error' });
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const removeAiKey = async () => {
+    setAiMsg(null);
+    try {
+      setAiStatus(await api.deleteAiKey());
+      setAiMsg({ text: 'Key removed. Filtering will fail closed until a new key is added.', kind: 'ok' });
+    } catch (e) {
+      setAiMsg({ text: e instanceof Error ? e.message : 'Could not remove the key', kind: 'error' });
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -488,6 +524,62 @@ export default function CriteriaPage() {
               onChange={(e) => setNotif({ onAiFlag: e.currentTarget.checked })}
             />
           </Stack>
+        </Stack>
+      </Card>
+
+      <Card>
+        <Stack gap="sm">
+          <div>
+            <Title order={4}>AI connection</Title>
+            <Text size="sm" c="dimmed">
+              The Anthropic API key this server uses to judge content. Your server talks straight
+              to Anthropic — nobody else ever sees your key or your kids' activity.
+            </Text>
+          </div>
+          {aiStatus?.configured ? (
+            <Alert color="teal" icon={<IconKey size={16} />}>
+              Connected — key ending in …{aiStatus.last4}
+              {aiStatus.source === 'secret'
+                ? '. It was set as a deploy secret; change it with npx wrangler secret put ANTHROPIC_API_KEY.'
+                : '.'}
+            </Alert>
+          ) : (
+            <Alert color="red" icon={<IconAlertCircle size={16} />}>
+              No API key configured — all filtering fails closed (everything is blocked) until one
+              is added. Get one at{' '}
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
+                console.anthropic.com
+              </a>
+              .
+            </Alert>
+          )}
+          {aiStatus?.source !== 'secret' && (
+            <Group wrap="nowrap" align="flex-end">
+              <PasswordInput
+                style={{ flex: 1 }}
+                label={aiStatus?.configured ? 'Replace the key' : 'Anthropic API key'}
+                placeholder="sk-ant-…"
+                value={aiKeyInput}
+                onChange={(e) => setAiKeyInput(e.currentTarget.value)}
+              />
+              <Button loading={savingKey} disabled={!aiKeyInput.trim()} onClick={() => void saveAiKey()}>
+                Save key
+              </Button>
+              {aiStatus?.configured && (
+                <Button variant="default" color="red" onClick={() => void removeAiKey()}>
+                  Remove
+                </Button>
+              )}
+            </Group>
+          )}
+          {aiMsg && (
+            <Alert
+              color={aiMsg.kind === 'ok' ? 'teal' : 'red'}
+              icon={aiMsg.kind === 'ok' ? <IconCircleCheck size={16} /> : <IconAlertCircle size={16} />}
+            >
+              {aiMsg.text}
+            </Alert>
+          )}
         </Stack>
       </Card>
 

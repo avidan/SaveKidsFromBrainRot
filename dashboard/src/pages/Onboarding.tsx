@@ -10,6 +10,7 @@ import {
   CopyButton,
   Group,
   List,
+  PasswordInput,
   Stack,
   Stepper,
   Text,
@@ -29,13 +30,14 @@ import {
   IconDevices,
   IconExternalLink,
   IconFlask,
+  IconKey,
   IconPlug,
   IconRefresh,
   IconShieldCheck,
   IconSparkles,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
-import type { Settings, TestResponse } from '../../../shared/types';
+import type { AiKeyStatus, Settings, TestResponse } from '../../../shared/types';
 import { DEFAULT_SETTINGS } from '../../../shared/types';
 import { api, getBackendUrl } from '../api';
 import Logo from '../Logo';
@@ -59,6 +61,10 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [aiStatus, setAiStatus] = useState<AiKeyStatus | null>(null);
+  const [aiKeyInput, setAiKeyInput] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
+
   const [pairCode, setPairCode] = useState<{ code: string; expiresAt: number } | null>(null);
   const [pairedName, setPairedName] = useState<string | null>(null);
   const deviceName = useRef('My Mac (testing)');
@@ -78,11 +84,15 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         if (p.criteria.trim()) setCriteria(p.criteria);
       })
       .catch(() => undefined);
+    void api
+      .getAiKey()
+      .then(setAiStatus)
+      .catch(() => undefined);
   }, []);
 
   // While on the pairing step, watch for the extension checking in.
   useEffect(() => {
-    if (step !== 2 || pairedName) return;
+    if (step !== 3 || pairedName) return;
     const interval = setInterval(() => {
       void api
         .getDevices()
@@ -100,7 +110,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
     setError('');
     try {
       await api.putPolicy(criteria, '', settings);
-      setStep(1);
+      setStep(2);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save — try again');
     } finally {
@@ -114,6 +124,20 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
       setPairCode(await api.createPairCode(deviceName.current));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create a code');
+    }
+  };
+
+  const saveAiKey = async () => {
+    setSavingKey(true);
+    setError('');
+    try {
+      setAiStatus(await api.putAiKey(aiKeyInput));
+      setAiKeyInput('');
+      setStep(1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the key — try again');
+    } finally {
+      setSavingKey(false);
     }
   };
 
@@ -160,6 +184,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         </Group>
 
         <Stepper active={step} size="sm" iconSize={30}>
+          <Stepper.Step label="AI" icon={<IconKey size={16} />} />
           <Stepper.Step label="Rules" icon={<IconSparkles size={16} />} />
           <Stepper.Step label="Install" icon={<IconBrandChrome size={16} />} />
           <Stepper.Step label="Pair" icon={<IconPlug size={16} />} />
@@ -174,6 +199,54 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         )}
 
         {step === 0 && (
+          <Card>
+            <Stack gap="sm">
+              <div>
+                <Title order={4}>Connect the AI</Title>
+                <Text size="sm" c="dimmed">
+                  The filtering is done by Claude, using your own Anthropic API key — your server
+                  talks straight to Anthropic and nobody else. Get a key at{' '}
+                  <Anchor href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
+                    console.anthropic.com
+                  </Anchor>{' '}
+                  (create an account, add a few dollars of credit, then <b>API keys → Create key</b>)
+                  and paste it here. Typical usage is single-digit dollars a month.
+                </Text>
+              </div>
+              {aiStatus?.configured ? (
+                <>
+                  <Alert color="teal" icon={<IconCircleCheck size={16} />}>
+                    <b>AI is connected</b> — key ending in …{aiStatus.last4}
+                    {aiStatus.source === 'secret' ? ' (set during deploy)' : ''}. Nothing to do here.
+                  </Alert>
+                  <Group justify="flex-end">
+                    <Button onClick={() => setStep(1)}>Continue</Button>
+                  </Group>
+                </>
+              ) : (
+                <>
+                  <PasswordInput
+                    label="Anthropic API key"
+                    placeholder="sk-ant-…"
+                    value={aiKeyInput}
+                    onChange={(e) => setAiKeyInput(e.currentTarget.value)}
+                  />
+                  <Text size="xs" c="dimmed">
+                    Stored in your own database, never shown again in full. You can rotate or remove
+                    it any time from the Rules tab.
+                  </Text>
+                  <Group justify="flex-end">
+                    <Button loading={savingKey} disabled={!aiKeyInput.trim()} onClick={() => void saveAiKey()}>
+                      Save & continue
+                    </Button>
+                  </Group>
+                </>
+              )}
+            </Stack>
+          </Card>
+        )}
+
+        {step === 1 && (
           <Card>
             <Stack gap="sm">
               <div>
@@ -199,7 +272,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
           </Card>
         )}
 
-        {step === 1 && (
+        {step === 2 && (
           <Card>
             <Stack gap="sm">
               <div>
@@ -226,16 +299,16 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
                 The listing is unlisted — only people with this link can find it.
               </Text>
               <Group justify="space-between" mt="xs">
-                <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={14} />} onClick={() => setStep(0)}>
+                <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={14} />} onClick={() => setStep(1)}>
                   Back
                 </Button>
-                <Button onClick={() => setStep(2)}>It's installed — continue</Button>
+                <Button onClick={() => setStep(3)}>It's installed — continue</Button>
               </Group>
             </Stack>
           </Card>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <Card>
             <Stack gap="sm">
               <div>
@@ -297,10 +370,10 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
                 )
               )}
               <Group justify="space-between" mt="xs">
-                <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={14} />} onClick={() => setStep(1)}>
+                <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={14} />} onClick={() => setStep(2)}>
                   Back
                 </Button>
-                <Button disabled={!pairedName} onClick={() => setStep(3)}>
+                <Button disabled={!pairedName} onClick={() => setStep(4)}>
                   Continue
                 </Button>
               </Group>
@@ -308,7 +381,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
           </Card>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <Card>
             <Stack gap="sm">
               <div>
@@ -357,16 +430,16 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
                 </Alert>
               )}
               <Group justify="space-between" mt="xs">
-                <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={14} />} onClick={() => setStep(2)}>
+                <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={14} />} onClick={() => setStep(3)}>
                   Back
                 </Button>
-                <Button onClick={() => setStep(4)}>Looks good — continue</Button>
+                <Button onClick={() => setStep(5)}>Looks good — continue</Button>
               </Group>
             </Stack>
           </Card>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <Card>
             <Stack gap="sm">
               <Center>

@@ -31,8 +31,9 @@ import {
   randomId,
   randomToken,
 } from './auth';
-import { evaluateChannels, evaluateVideo } from './claude';
+import { anthropicKey, evaluateChannels, evaluateVideo, primeKeyCache } from './claude';
 import type { AppContext } from './env';
+import schemaSql from '../schema.sql';
 import { handleMcpRequest } from './mcp';
 import { activeMode, criteriaFor, effectiveMode } from './mode';
 import { notifyParent, sendDirect, shouldNotify } from './notify';
@@ -46,6 +47,37 @@ app.use('*', cors({ origin: '*', allowHeaders: ['Authorization', 'Content-Type']
 app.onError((err, c) => {
   console.error(`unhandled error on ${c.req.method} ${c.req.path}: ${err.stack ?? err.message}`);
   return c.json({ error: 'Internal error' }, 500);
+});
+
+// Self-apply the schema when the database is empty. The Deploy-to-Cloudflare
+// button provisions a blank D1 but can't run SQL against it, so the first
+// request bootstraps it here. schema.sql is idempotent, but we still gate on
+// a table probe so warm isolates skip the check entirely.
+let schemaChecked = false;
+app.use('*', async (c, next) => {
+  if (!schemaChecked) {
+    try {
+      const probe = await c.env.DB.prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'families'",
+      ).first<{ name: string }>();
+      if (!probe) {
+        const statements = schemaSql
+          .split('\n')
+          .filter((line) => !line.trimStart().startsWith('--'))
+          .join('\n')
+          .split(';')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        await c.env.DB.batch(statements.map((s) => c.env.DB.prepare(s)));
+        console.log('empty database detected — schema applied');
+      }
+      schemaChecked = true;
+    } catch (err) {
+      // Don't wedge the request on a probe failure; the next request retries.
+      console.error(`schema bootstrap failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  await next();
 });
 
 // ---------- helpers ----------
@@ -604,6 +636,42 @@ app.post('/dashboard/pause', async (c) => {
 app.delete('/dashboard/pause', async (c) => {
   await service.setPause(c.env, c.get('familyId'), null);
   return c.json({ pausedUntil: null });
+});
+
+// ---------- dashboard: Anthropic API key (one-click-deploy path) ----------
+// A wrangler secret, when set, always wins over the dashboard-stored key.
+
+app.get('/dashboard/ai-key', async (c) => {
+  if (c.env.ANTHROPIC_API_KEY) {
+    return c.json({ configured: true, source: 'secret', last4: c.env.ANTHROPIC_API_KEY.slice(-4) });
+  }
+  const stored = await anthropicKey(c.env);
+  if (stored) return c.json({ configured: true, source: 'dashboard', last4: stored.slice(-4) });
+  return c.json({ configured: false, source: null, last4: null });
+});
+
+app.put('/dashboard/ai-key', async (c) => {
+  if (c.env.ANTHROPIC_API_KEY) {
+    return c.json({ error: 'The key is set as a wrangler secret on this deployment; change it with `npx wrangler secret put ANTHROPIC_API_KEY`.' }, 409);
+  }
+  const { key } = await c.req.json<{ key: string }>();
+  const trimmed = (key ?? '').trim();
+  if (!/^sk-ant-/.test(trimmed)) {
+    return c.json({ error: 'That does not look like an Anthropic API key (they start with sk-ant-).' }, 400);
+  }
+  await c.env.DB.prepare(
+    "INSERT INTO server_config (key, value) VALUES ('anthropic_api_key', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+  )
+    .bind(trimmed)
+    .run();
+  primeKeyCache(trimmed);
+  return c.json({ configured: true, source: 'dashboard', last4: trimmed.slice(-4) });
+});
+
+app.delete('/dashboard/ai-key', async (c) => {
+  await c.env.DB.prepare("DELETE FROM server_config WHERE key = 'anthropic_api_key'").run();
+  primeKeyCache(null);
+  return c.json({ configured: Boolean(c.env.ANTHROPIC_API_KEY), source: c.env.ANTHROPIC_API_KEY ? 'secret' : null, last4: c.env.ANTHROPIC_API_KEY?.slice(-4) ?? null });
 });
 
 // ---------- dashboard: overrides ----------

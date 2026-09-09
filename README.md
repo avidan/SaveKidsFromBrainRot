@@ -9,8 +9,17 @@ need to touch the kid's laptop after a one-time pairing.
 Inspired by [yt-blocker-kids](https://github.com/Michailbul/yt-blocker-kids); see
 [PLAN.md](./PLAN.md) for the design.
 
-**Want this for your family?** One command deploys the whole thing (API +
-dashboard, one URL) to your own free Cloudflare account in about ten minutes:
+**Want this for your family?** Deploy the whole thing (API + dashboard, one
+URL) to your own free Cloudflare account with one click — no terminal needed:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/avidan/SaveKidsFromBrainRot)
+
+(If it asks for the project's root directory, enter `backend`.) When the deploy
+finishes, open your new `*.workers.dev` URL, create the parent account, and the
+onboarding wizard walks you through the rest — including pasting your Anthropic
+API key, so you never touch a config file.
+
+Prefer the terminal? The same deploy as one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/avidan/SaveKidsFromBrainRot/main/install.sh | bash

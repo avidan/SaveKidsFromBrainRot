@@ -1,5 +1,6 @@
 import type {
   ActivityEvent,
+  AiKeyStatus,
   ApiKeyInfo,
   DeviceInfo,
   ExportBundle,
@@ -113,6 +114,11 @@ export const api = {
   createApiKey: (name: string) =>
     request<{ id: string; key: string }>('/dashboard/api-keys', { method: 'POST', body: JSON.stringify({ name }) }),
   revokeApiKey: (id: string) => request<{ ok: true }>(`/dashboard/api-keys/${id}`, { method: 'DELETE' }),
+
+  getAiKey: () => request<AiKeyStatus>('/dashboard/ai-key'),
+  putAiKey: (key: string) =>
+    request<AiKeyStatus>('/dashboard/ai-key', { method: 'PUT', body: JSON.stringify({ key }) }),
+  deleteAiKey: () => request<AiKeyStatus>('/dashboard/ai-key', { method: 'DELETE' }),
 
   exportBundle: () => request<ExportBundle>('/dashboard/export'),
   importBundle: (bundle: ExportBundle) =>
