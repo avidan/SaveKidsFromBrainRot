@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS families (
   created_at INTEGER NOT NULL
 );
 
+-- Parent dashboard sessions. The token column stores the SHA-256 hex of the
+-- bearer token, never the raw value, so a database read can't be replayed
+-- as a session. The raw token is only ever returned once, at login/signup.
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   family_id TEXT NOT NULL,
