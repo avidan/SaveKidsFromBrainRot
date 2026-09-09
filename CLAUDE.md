@@ -152,6 +152,11 @@ all import it; change shapes there first.
   `wrangler d1 execute --remote --json`; `wrangler tail` for live logs. Real
   YouTube behavior can only be tested on a real machine — say so rather than
   claiming it.
+- **PR review process**: before judging a PR merge-ready, rebase (or merge)
+  the PR branch onto the latest `main` locally and run verification against
+  that combined state — GitHub's "mergeable" flag only detects textual
+  conflicts, not semantic ones. There is no staging env and merges deploy to
+  prod quickly, so the pre-merge check is the whole safety net.
 
 ## Operational gotchas (each cost real debugging time)
 
