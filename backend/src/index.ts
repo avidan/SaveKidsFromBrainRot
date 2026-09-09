@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import type {
   ActivityEvent,
@@ -77,6 +78,15 @@ app.use('*', async (c, next) => {
       console.error(`schema bootstrap failed: ${err instanceof Error ? err.message : err}`);
     }
   }
+  // Tables added after the initial schema need to exist on long-lived
+  // databases too — CREATE TABLE IF NOT EXISTS is cheap and idempotent.
+  try {
+    await c.env.DB.prepare(
+      'CREATE TABLE IF NOT EXISTS rate_limits (key TEXT NOT NULL, window_start INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (key, window_start))',
+    ).run();
+  } catch {
+    /* non-fatal; retried on the next request */
+  }
   await next();
 });
 
@@ -89,6 +99,48 @@ function now(): number {
 function bearer(header: string | undefined): string | null {
   if (!header?.startsWith('Bearer ')) return null;
   return header.slice(7).trim() || null;
+}
+
+// ---------- rate limiting (brute-force protection) ----------
+// Fixed-window counters in D1, keyed per client IP. Applied to the
+// endpoints where guessing pays off: login, password reset, and device
+// pairing (6-digit codes). Returns true when the request may proceed.
+
+function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
+  return (
+    c.req.header('cf-connecting-ip')?.split(',')[0].trim() ||
+    c.req.header('x-forwarded-for')?.split(',')[0].trim() ||
+    'unknown'
+  );
+}
+
+async function rateLimit(db: D1Database, key: string, limit: number, windowMs: number): Promise<boolean> {
+  const windowStart = Math.floor(now() / windowMs) * windowMs;
+  await db
+    .prepare(
+      `INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+       ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1`,
+    )
+    .bind(key, windowStart)
+    .run();
+  const row = await db
+    .prepare('SELECT count FROM rate_limits WHERE key = ? AND window_start = ?')
+    .bind(key, windowStart)
+    .first<{ count: number }>();
+  // Opportunistic cleanup so the table can't grow without bound.
+  if (Math.random() < 0.01) {
+    await db
+      .prepare('DELETE FROM rate_limits WHERE window_start < ?')
+      .bind(windowStart - windowMs)
+      .run()
+      .catch(() => undefined);
+  }
+  return (row?.count ?? 1) <= limit;
+}
+
+/** 429 helper for rate-limited requests. */
+function tooManyRequests(c: Context): Response {
+  return c.json({ error: 'Too many attempts — please wait a few minutes and try again.' }, 429);
 }
 
 async function loadPolicy(db: D1Database, familyId: string): Promise<Policy> {
@@ -195,8 +247,11 @@ app.post('/auth/signup', async (c) => {
 });
 
 app.post('/auth/login', async (c) => {
-  const { email, password } = await c.req.json<{ email: string; password: string }>();
   const db = c.env.DB;
+  if (!(await rateLimit(db, `login:${clientIp(c)}`, 20, 10 * 60 * 1000))) {
+    return tooManyRequests(c);
+  }
+  const { email, password } = await c.req.json<{ email: string; password: string }>();
   const fam = await db
     .prepare('SELECT id, password_hash, password_salt FROM families WHERE email = ?')
     .bind((email ?? '').toLowerCase())
@@ -226,8 +281,11 @@ app.post('/auth/logout', async (c) => {
 // Password reset: a 6-digit code delivered to the account email (Resend, if
 // configured) and/or the family's ntfy topic. Valid 30 minutes, single-use.
 app.post('/auth/request-reset', async (c) => {
-  const { email } = await c.req.json<{ email: string }>();
   const db = c.env.DB;
+  if (!(await rateLimit(db, `reset-request:${clientIp(c)}`, 5, 60 * 60 * 1000))) {
+    return tooManyRequests(c);
+  }
+  const { email } = await c.req.json<{ email: string }>();
   const fam = await db
     .prepare('SELECT id, email FROM families WHERE email = ?')
     .bind((email ?? '').toLowerCase())
@@ -259,11 +317,15 @@ app.post('/auth/request-reset', async (c) => {
 });
 
 app.post('/auth/reset', async (c) => {
+  const db = c.env.DB;
+  // 6-digit codes: keep the guessing budget tiny.
+  if (!(await rateLimit(db, `reset:${clientIp(c)}`, 10, 10 * 60 * 1000))) {
+    return tooManyRequests(c);
+  }
   const { email, code, newPassword } = await c.req.json<{ email: string; code: string; newPassword: string }>();
   if (!newPassword || newPassword.length < 8) {
     return c.json({ error: 'New password must be 8+ characters' }, 400);
   }
-  const db = c.env.DB;
   const fam = await db
     .prepare('SELECT id FROM families WHERE email = ?')
     .bind((email ?? '').toLowerCase())
@@ -300,8 +362,12 @@ app.use('/dashboard/*', async (c, next) => {
 // ---------- device auth + pairing ----------
 
 app.post('/pair', async (c) => {
-  const { code, deviceName } = await c.req.json<PairRequest>();
   const db = c.env.DB;
+  // 6-digit pairing codes: keep the guessing budget tiny.
+  if (!(await rateLimit(db, `pair:${clientIp(c)}`, 10, 10 * 60 * 1000))) {
+    return tooManyRequests(c);
+  }
+  const { code, deviceName } = await c.req.json<PairRequest>();
   const row = await db
     .prepare('SELECT code, family_id, device_name, expires_at, used FROM pairing_codes WHERE code = ?')
     .bind(code)
