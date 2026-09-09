@@ -15,6 +15,18 @@ export interface Env {
    * always wins.
    */
   META_API_KEY?: string;
+  /**
+   * Optional: OpenAI API key (api.openai.com). Same precedence as
+   * ANTHROPIC_API_KEY: when unset, the key stored via the dashboard
+   * (server_config table) is used instead. The secret, when present,
+   * always wins.
+   */
+  OPENAI_API_KEY?: string;
+  /**
+   * Optional: Google AI Studio API key for Gemini models, via Google's
+   * OpenAI-compatible endpoint. Same precedence as ANTHROPIC_API_KEY.
+   */
+  GOOGLE_API_KEY?: string;
   /** Optional: enables email notifications (wrangler secret put RESEND_API_KEY). */
   RESEND_API_KEY?: string;
   /** Optional: the From address for notification emails. */

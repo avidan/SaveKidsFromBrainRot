@@ -135,7 +135,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** Which AI backend a model runs on. */
-export type AiProvider = 'anthropic' | 'meta';
+export type AiProvider = 'anthropic' | 'meta' | 'openai' | 'google';
 
 /** Models offered in the dashboard dropdown. */
 export const MODEL_CHOICES: Array<{ id: string; label: string; provider: AiProvider; contributor?: boolean }> = [
@@ -149,7 +149,17 @@ export const MODEL_CHOICES: Array<{ id: string; label: string; provider: AiProvi
     provider: 'meta',
     contributor: true,
   },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — Google, fast and cheap', provider: 'google' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o mini — OpenAI, fast and cheap', provider: 'openai' },
 ];
+
+/** Default model selected when a key for a provider is saved during onboarding. */
+export const DEFAULT_MODEL_FOR_PROVIDER: Record<AiProvider, string> = {
+  anthropic: 'claude-haiku-4-5',
+  meta: 'muse-spark-1.1',
+  google: 'gemini-2.5-flash',
+  openai: 'gpt-4o-mini',
+};
 
 /**
  * Whether the model is on a contributor tier: prompts and completions are used
@@ -204,6 +214,24 @@ export const PROVIDER_INFO: Record<
     keyUrlLabel: 'dev.meta.ai',
     keyUrlHint: 'create an account, then API keys → Create key (US only during the public preview)',
     secretName: 'META_API_KEY',
+  },
+  google: {
+    name: 'Google',
+    keyPrefix: 'AIza',
+    keyPlaceholder: 'AIza…',
+    keyUrl: 'https://aistudio.google.com/apikey',
+    keyUrlLabel: 'aistudio.google.com',
+    keyUrlHint: 'sign in with your Google account, then "Create API key" — free tier, no credit card',
+    secretName: 'GOOGLE_API_KEY',
+  },
+  openai: {
+    name: 'OpenAI',
+    keyPrefix: 'sk-',
+    keyPlaceholder: 'sk-…',
+    keyUrl: 'https://platform.openai.com/api-keys',
+    keyUrlLabel: 'platform.openai.com',
+    keyUrlHint: 'sign up (SMS verification), add a payment method with $5 credit, then "Create new secret key"',
+    secretName: 'OPENAI_API_KEY',
   },
 };
 

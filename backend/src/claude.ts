@@ -1,13 +1,14 @@
 import type { AiProvider, ChannelMeta, Decision, Verdict, VideoMeta } from '../../shared/types';
 import { PROVIDER_INFO, providerForModel } from '../../shared/types';
 import type { Env } from './env';
+import { callOpenAICompat } from './openaiCompat';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 // Meta's Model API speaks the Anthropic Messages format, so the same request
 // shape works against it — only the base URL and the key change.
 const META_API_URL = 'https://api.meta.ai/v1/messages';
 
-const RUBRIC = `You are a parental-control classifier for YouTube. A parent has written criteria describing what their child may watch. You will receive metadata about YouTube channels or individual videos, and you must decide for each item:
+export const RUBRIC = `You are a parental-control classifier for YouTube. A parent has written criteria describing what their child may watch. You will receive metadata about YouTube channels or individual videos, and you must decide for each item:
 
 - "allow": clearly consistent with the parent's criteria.
 - "block": violates the criteria, or exhibits the engagement-bait / "brainrot" patterns the criteria prohibit.
@@ -62,7 +63,7 @@ const FINAL_VIDEO_SCHEMA = {
   },
 } as const;
 
-type UserContent =
+export type UserContent =
   | string
   | Array<
       | { type: 'text'; text: string }
@@ -76,6 +77,8 @@ interface ClaudeResult {
   error?: string;
 }
 
+export type { ClaudeResult };
+
 // The AI key comes from the wrangler secret when set, else from the
 // dashboard-configured value in D1 (one-click deploys have no secrets).
 // Cached per isolate for a minute so evaluations don't add a D1 read each.
@@ -83,11 +86,22 @@ interface ClaudeResult {
 const keyCaches: Record<AiProvider, { value: string | null; at: number } | null> = {
   anthropic: null,
   meta: null,
+  openai: null,
+  google: null,
 };
 
 const CONFIG_KEYS: Record<AiProvider, string> = {
   anthropic: 'anthropic_api_key',
   meta: 'meta_api_key',
+  openai: 'openai_api_key',
+  google: 'google_api_key',
+};
+
+const SECRET_NAMES: Record<AiProvider, 'ANTHROPIC_API_KEY' | 'META_API_KEY' | 'OPENAI_API_KEY' | 'GOOGLE_API_KEY'> = {
+  anthropic: 'ANTHROPIC_API_KEY',
+  meta: 'META_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  google: 'GOOGLE_API_KEY',
 };
 
 export function primeKeyCache(provider: AiProvider, value: string | null): void {
@@ -95,7 +109,7 @@ export function primeKeyCache(provider: AiProvider, value: string | null): void 
 }
 
 export async function aiKey(env: Env, provider: AiProvider): Promise<string | null> {
-  const secret = provider === 'meta' ? env.META_API_KEY : env.ANTHROPIC_API_KEY;
+  const secret = env[SECRET_NAMES[provider]];
   if (secret) return secret;
   const cached = keyCaches[provider];
   if (cached && Date.now() - cached.at < 60_000) return cached.value;
@@ -123,7 +137,7 @@ function supportsFallbacks(model: string): boolean {
   return /^claude-(opus|fable|mythos)-5/.test(model);
 }
 
-async function callClaude(
+async function callAI(
   env: Env,
   model: string,
   criteria: string,
@@ -132,6 +146,11 @@ async function callClaude(
   effort?: 'low' | 'medium' | 'high',
 ): Promise<ClaudeResult> {
   const provider = providerForModel(model);
+  // OpenAI and Google speak Chat Completions, not the Anthropic Messages
+  // format — delegate to the shared OpenAI-compatible client.
+  if (provider === 'openai' || provider === 'google') {
+    return callOpenAICompat(env, provider, model, criteria, userContent, schema);
+  }
   const apiKey = await aiKey(env, provider);
   if (!apiKey) {
     return {
@@ -241,7 +260,7 @@ export async function evaluateChannels(
   // Channel triage is latency-sensitive (a kid is staring at a blurred feed):
   // run at low effort. Quality holds up well for this shape of judgment, and
   // borderline channels surface as "unsure" for the parent anyway.
-  const result = await callClaude(env, model, criteria, prompt, CHANNEL_SCHEMA, 'low');
+  const result = await callAI(env, model, criteria, prompt, CHANNEL_SCHEMA, 'low');
   const out: Record<string, Verdict> = {};
 
   if (result.ok) {
@@ -332,7 +351,7 @@ export async function evaluateVideo(
 
   // The lightweight pass gates playback interactively — low effort keeps the
   // wait short; anything genuinely hard escalates to the full-effort pass.
-  const light = await callClaude(env, model, criteria, lightPrompt, VIDEO_SCHEMA, 'low');
+  const light = await callAI(env, model, criteria, lightPrompt, VIDEO_SCHEMA, 'low');
 
   if (!light.ok) {
     return unsureVerdict(
@@ -369,7 +388,7 @@ export async function evaluateVideo(
       (thumb ? '\n\nThe image above is the video\'s thumbnail.' : ''),
   });
 
-  const full = await callClaude(env, model, criteria, content, FINAL_VIDEO_SCHEMA);
+  const full = await callAI(env, model, criteria, content, FINAL_VIDEO_SCHEMA);
   if (!full.ok) {
     return unsureVerdict('Needed a closer look but the follow-up evaluation failed; needs parent review');
   }

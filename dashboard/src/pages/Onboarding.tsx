@@ -39,7 +39,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import type { AiKeyStatus, AiProvider, Settings, TestResponse } from '../../../shared/types';
-import { DEFAULT_SETTINGS, PROVIDER_INFO } from '../../../shared/types';
+import { DEFAULT_MODEL_FOR_PROVIDER, DEFAULT_SETTINGS, PROVIDER_INFO, providerForModel } from '../../../shared/types';
 import { api, getBackendUrl } from '../api';
 import Logo from '../Logo';
 import { STORE_URL } from '../mobileconfig';
@@ -145,9 +145,9 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
       setAiKeyInput('');
       // The model must match the provider whose key was just saved, otherwise
       // filtering would call the wrong API with the wrong credential.
-      if (aiProvider === 'meta') {
-        setSettings((s) => ({ ...s, model: 'muse-spark-1.1' }));
-      }
+      setSettings((s) =>
+        providerForModel(s.model) === aiProvider ? s : { ...s, model: DEFAULT_MODEL_FOR_PROVIDER[aiProvider] },
+      );
       setStep(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the key — try again');
@@ -219,9 +219,8 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
               <div>
                 <Title order={4}>Connect the AI</Title>
                 <Text size="sm" c="dimmed">
-                  The filtering is done by {aiProvider === 'meta' ? 'Muse Spark (Meta)' : 'Claude'},
-                  using your own {providerInfo.name} API key — your server talks straight to{' '}
-                  {providerInfo.name} and nobody else. Get a key at{' '}
+                  The filtering is done by {providerInfo.name} AI, using your own API key —
+                  your server talks straight to {providerInfo.name} and nobody else. Get a key at{' '}
                   <Anchor href={providerInfo.keyUrl} target="_blank" rel="noreferrer">
                     {providerInfo.keyUrlLabel}
                   </Anchor>{' '}
@@ -233,8 +232,10 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
                 value={aiProvider}
                 onChange={(v) => setAiProvider(v as AiProvider)}
                 data={[
-                  { value: 'anthropic', label: 'Claude (Anthropic)' },
-                  { value: 'meta', label: 'Muse (Meta)' },
+                  { value: 'anthropic', label: 'Claude' },
+                  { value: 'meta', label: 'Muse' },
+                  { value: 'google', label: 'Gemini' },
+                  { value: 'openai', label: 'ChatGPT' },
                 ]}
               />
               {aiStatus?.configured ? (
