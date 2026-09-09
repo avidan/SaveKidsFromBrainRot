@@ -162,7 +162,14 @@ async function callTool(env: Env, familyId: string, name: string, args: Record<s
       );
       return { pinned: true };
     case 'pause_youtube': {
-      const pausedUntil = await setPause(env, familyId, Number(args.minutes));
+      // Never trust the model's arithmetic: NaN/negative/zero would
+      // otherwise fall through to setPause's "resume" path and silently
+      // unpause YouTube instead of pausing it.
+      const minutes = Number(args.minutes);
+      if (!Number.isFinite(minutes) || minutes <= 0) {
+        throw new Error('pause_youtube requires minutes to be a positive number');
+      }
+      const pausedUntil = await setPause(env, familyId, minutes);
       return { pausedUntil, pausedUntilLocal: pausedUntil ? new Date(pausedUntil).toISOString() : null };
     }
     case 'resume_youtube':
