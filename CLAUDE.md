@@ -195,9 +195,14 @@ Connect-the-AI key step), install-confirmation modal, one-command installer
 (`install.sh` / `npm run setup`), Deploy-to-Cloudflare button (self-applying
 schema + dashboard-entered API key), brand (sprout-in-shield, `logo.svg`
 canonical), CWS listing (unlisted) at v0.2.10.
+Validated on a real iPhone (Sep 2026): Xcode-converted Safari build pairs and
+filters live YouTube on mobile markup — the `ytm-*` selectors and Safari
+background lifecycle work in practice. (Conversion gotchas hit on the way:
+stale provisioning-profile cache, and the extension target's bundle ID must be
+the app's ID + suffix.)
 Open threads: a real click-through of the Deploy button flow (the monorepo
-root-directory behavior is unverified from the sandbox); real-iPad validation
-of the Safari build (mobile-markup selectors and background lifecycle are the
-untested parts); moving the owner's Mosyle Macs from the legacy feed to the
-store build, then retiring crx packing; per-mode distraction toggles is a
-cheap natural extension.
+root-directory behavior is unverified from the sandbox); the deeper iOS
+checklist (watch-page gate, blocked overlay + kid request, distractions,
+screen-time accrual, desktop-markup flip) plus iPad; moving the owner's Mosyle
+Macs from the legacy feed to the store build, then retiring crx packing;
+per-mode distraction toggles is a cheap natural extension.
