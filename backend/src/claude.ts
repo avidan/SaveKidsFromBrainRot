@@ -142,7 +142,6 @@ async function callClaude(
       // Thinking is on by default on current models and shares this budget —
       // keep generous headroom so batch verdicts never truncate mid-JSON.
       max_tokens: 16000,
-      ...(effort && supportsEffort(model) ? { output_config: { effort } } : {}),
       ...(useFallbacks ? { fallbacks: 'default' } : {}),
       // Stable rubric first, then per-family criteria with a cache breakpoint:
       // repeated evaluations for the same family hit the prompt cache.
@@ -154,7 +153,13 @@ async function callClaude(
           cache_control: { type: 'ephemeral' },
         },
       ],
-      output_config: { format: { type: 'json_schema', schema } },
+      output_config: {
+        // effort must be merged into the same object — a second output_config
+        // key would overwrite it (previously the 'low' effort setting was
+        // silently dropped and every call ran at default effort).
+        ...(effort && supportsEffort(model) ? { effort } : {}),
+        format: { type: 'json_schema', schema },
+      },
       messages: [{ role: 'user', content: userContent }],
     }),
     });
