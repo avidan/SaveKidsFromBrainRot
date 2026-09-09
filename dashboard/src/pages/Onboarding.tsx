@@ -11,6 +11,7 @@ import {
   Group,
   List,
   PasswordInput,
+  SegmentedControl,
   Stack,
   Stepper,
   Text,
@@ -37,8 +38,8 @@ import {
   IconSparkles,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
-import type { AiKeyStatus, Settings, TestResponse } from '../../../shared/types';
-import { DEFAULT_SETTINGS } from '../../../shared/types';
+import type { AiKeyStatus, AiProvider, Settings, TestResponse } from '../../../shared/types';
+import { DEFAULT_SETTINGS, PROVIDER_INFO } from '../../../shared/types';
 import { api, getBackendUrl } from '../api';
 import Logo from '../Logo';
 import { STORE_URL } from '../mobileconfig';
@@ -64,6 +65,8 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   const [aiStatus, setAiStatus] = useState<AiKeyStatus | null>(null);
   const [aiKeyInput, setAiKeyInput] = useState('');
   const [savingKey, setSavingKey] = useState(false);
+  const [aiProvider, setAiProvider] = useState<AiProvider>('anthropic');
+  const providerInfo = PROVIDER_INFO[aiProvider];
 
   const [pairCode, setPairCode] = useState<{ code: string; expiresAt: number } | null>(null);
   const [pairedName, setPairedName] = useState<string | null>(null);
@@ -84,11 +87,18 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         if (p.criteria.trim()) setCriteria(p.criteria);
       })
       .catch(() => undefined);
+  }, []);
+
+  // The key status follows the selected provider: switching to Meta Muse shows
+  // whether a Meta key is configured instead.
+  useEffect(() => {
+    setAiStatus(null);
+    setAiKeyInput('');
     void api
-      .getAiKey()
+      .getAiKey(aiProvider)
       .then(setAiStatus)
       .catch(() => undefined);
-  }, []);
+  }, [aiProvider]);
 
   // While on the pairing step, watch for the extension checking in.
   useEffect(() => {
@@ -131,8 +141,13 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
     setSavingKey(true);
     setError('');
     try {
-      setAiStatus(await api.putAiKey(aiKeyInput));
+      setAiStatus(await api.putAiKey(aiKeyInput, aiProvider));
       setAiKeyInput('');
+      // The model must match the provider whose key was just saved, otherwise
+      // filtering would call the wrong API with the wrong credential.
+      if (aiProvider === 'meta') {
+        setSettings((s) => ({ ...s, model: 'muse-spark-1.1' }));
+      }
       setStep(1);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the key — try again');
@@ -204,15 +219,24 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
               <div>
                 <Title order={4}>Connect the AI</Title>
                 <Text size="sm" c="dimmed">
-                  The filtering is done by Claude, using your own Anthropic API key — your server
-                  talks straight to Anthropic and nobody else. Get a key at{' '}
-                  <Anchor href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
-                    console.anthropic.com
+                  The filtering is done by {aiProvider === 'meta' ? 'Muse Spark (Meta)' : 'Claude'},
+                  using your own {providerInfo.name} API key — your server talks straight to{' '}
+                  {providerInfo.name} and nobody else. Get a key at{' '}
+                  <Anchor href={providerInfo.keyUrl} target="_blank" rel="noreferrer">
+                    {providerInfo.keyUrlLabel}
                   </Anchor>{' '}
-                  (create an account, add a few dollars of credit, then <b>API keys → Create key</b>)
-                  and paste it here. Typical usage is single-digit dollars a month.
+                  ({providerInfo.keyUrlHint}) and paste it here. Typical usage is single-digit
+                  dollars a month.
                 </Text>
               </div>
+              <SegmentedControl
+                value={aiProvider}
+                onChange={(v) => setAiProvider(v as AiProvider)}
+                data={[
+                  { value: 'anthropic', label: 'Claude (Anthropic)' },
+                  { value: 'meta', label: 'Muse (Meta)' },
+                ]}
+              />
               {aiStatus?.configured ? (
                 <>
                   <Alert color="teal" icon={<IconCircleCheck size={16} />}>
@@ -226,8 +250,8 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
               ) : (
                 <>
                   <PasswordInput
-                    label="Anthropic API key"
-                    placeholder="sk-ant-…"
+                    label={`${providerInfo.name} API key`}
+                    placeholder={providerInfo.keyPlaceholder}
                     value={aiKeyInput}
                     onChange={(e) => setAiKeyInput(e.currentTarget.value)}
                   />

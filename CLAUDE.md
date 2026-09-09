@@ -120,9 +120,10 @@ all import it; change shapes there first.
   `npx wrangler d1 execute skfbr --remote --command "..."`. Verdict tables are
   pure caches — drop/recreate is a legal migration.
 - Secrets: `ANTHROPIC_API_KEY` (optional — when unset, the key entered in the
-  dashboard is read from the `server_config` D1 table via `anthropicKey(env)`
-  in `claude.ts`, cached 60s per isolate; the secret, when present, always
-  wins and makes `/dashboard/ai-key` read-only), `RESEND_API_KEY`/`NOTIFY_FROM`
+  dashboard is read from the `server_config` D1 table via `aiKey(env, provider)`
+  in `claude.ts`, cached 60s per isolate per provider; the secret, when present, always
+  wins and makes `/dashboard/ai-key` read-only), `META_API_KEY` (same, for Muse Spark
+  models via the Meta Model API), `RESEND_API_KEY`/`NOTIFY_FROM`
   (email, optional), `OPEN_SIGNUPS` (optional). Notifications also go via
   ntfy.sh (topic stored in settings; topic = secret).
 - **One-click deploy** (Deploy-to-Cloudflare button in README/SETUP): the

@@ -134,12 +134,64 @@ export const DEFAULT_SETTINGS: Settings = {
   },
 };
 
+/** Which AI backend a model runs on. */
+export type AiProvider = 'anthropic' | 'meta';
+
 /** Models offered in the dashboard dropdown. */
-export const MODEL_CHOICES: Array<{ id: string; label: string }> = [
-  { id: 'claude-opus-5', label: 'Claude Opus 5 — most capable (recommended)' },
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced quality and cost' },
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 — fastest and cheapest' },
+export const MODEL_CHOICES: Array<{ id: string; label: string; provider: AiProvider }> = [
+  { id: 'claude-opus-5', label: 'Claude Opus 5 — most capable (recommended)', provider: 'anthropic' },
+  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced quality and cost', provider: 'anthropic' },
+  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 — fastest and cheapest', provider: 'anthropic' },
+  { id: 'muse-spark-1.1', label: 'Muse Spark 1.1 — Meta (via Meta Model API)', provider: 'meta' },
 ];
+
+/**
+ * Provider for a model id. Custom/unknown ids are assumed Anthropic-compatible,
+ * preserving the historical behavior for hand-typed model names.
+ */
+export function providerForModel(model: string): AiProvider {
+  return MODEL_CHOICES.find((m) => m.id === model)?.provider ?? 'anthropic';
+}
+
+/** Per-provider credential details shared by the dashboard UI. */
+export const PROVIDER_INFO: Record<
+  AiProvider,
+  {
+    /** Display name, e.g. 'Anthropic'. */
+    name: string;
+    /** Required key prefix, e.g. 'sk-ant-'. */
+    keyPrefix: string;
+    /** Placeholder for the key input. */
+    keyPlaceholder: string;
+    /** Where to create a key. */
+    keyUrl: string;
+    /** Short label for the key URL. */
+    keyUrlLabel: string;
+    /** One-line hint shown next to the key URL. */
+    keyUrlHint: string;
+    /** Wrangler secret name for the deploy-secret path. */
+    secretName: string;
+  }
+> = {
+  anthropic: {
+    name: 'Anthropic',
+    keyPrefix: 'sk-ant-',
+    keyPlaceholder: 'sk-ant-…',
+    keyUrl: 'https://console.anthropic.com/settings/keys',
+    keyUrlLabel: 'console.anthropic.com',
+    keyUrlHint: 'create an account, add a few dollars of credit, then API keys → Create key',
+    secretName: 'ANTHROPIC_API_KEY',
+  },
+  meta: {
+    name: 'Meta',
+    keyPrefix: 'LLM|',
+    keyPlaceholder: 'LLM|…',
+    keyUrl: 'https://dev.meta.ai/',
+    keyUrlLabel: 'dev.meta.ai',
+    keyUrlHint: 'create an account, then API keys → Create key (US only during the public preview)',
+    secretName: 'META_API_KEY',
+  },
+};
 
 export interface Override {
   kind: 'channel' | 'video';
@@ -235,12 +287,13 @@ export interface ApiKeyInfo {
   lastUsedAt: number | null;
 }
 
-/** Where the server's Anthropic API key comes from (GET /dashboard/ai-key). */
+/** Which provider's AI key this status describes (GET /dashboard/ai-key). */
 export interface AiKeyStatus {
   configured: boolean;
   /** 'secret' = wrangler secret (wins, read-only from the dashboard); 'dashboard' = stored in D1. */
   source: 'secret' | 'dashboard' | null;
   last4: string | null;
+  provider: AiProvider;
 }
 
 export interface ScreenTimeEntry {

@@ -21,7 +21,8 @@ import type {
   Verdict,
   VideoMeta,
 } from '../../shared/types';
-import { DEFAULT_SETTINGS } from '../../shared/types';
+import { DEFAULT_SETTINGS, PROVIDER_INFO } from '../../shared/types';
+import type { AiProvider } from '../../shared/types';
 import {
   PAIRING_CODE_TTL_MS,
   SESSION_TTL_MS,
@@ -31,7 +32,7 @@ import {
   randomId,
   randomToken,
 } from './auth';
-import { anthropicKey, evaluateChannels, evaluateVideo, primeKeyCache } from './claude';
+import { aiKey, evaluateChannels, evaluateVideo, primeKeyCache } from './claude';
 import type { AppContext } from './env';
 import schemaSql from '../schema.sql';
 import { handleMcpRequest } from './mcp';
@@ -638,40 +639,63 @@ app.delete('/dashboard/pause', async (c) => {
   return c.json({ pausedUntil: null });
 });
 
-// ---------- dashboard: Anthropic API key (one-click-deploy path) ----------
+// ---------- dashboard: AI provider keys (one-click-deploy path) ----------
 // A wrangler secret, when set, always wins over the dashboard-stored key.
+// ?provider= / { provider } selects the provider; defaults to 'anthropic'
+// so older dashboard builds keep working.
+
+function aiProviderFrom(c: { req: { query: (k: string) => string | undefined } }, body?: { provider?: string }): AiProvider {
+  const raw = body?.provider ?? c.req.query('provider');
+  return raw === 'meta' ? 'meta' : 'anthropic';
+}
 
 app.get('/dashboard/ai-key', async (c) => {
-  if (c.env.ANTHROPIC_API_KEY) {
-    return c.json({ configured: true, source: 'secret', last4: c.env.ANTHROPIC_API_KEY.slice(-4) });
+  const provider = aiProviderFrom(c);
+  const secret = provider === 'meta' ? c.env.META_API_KEY : c.env.ANTHROPIC_API_KEY;
+  const status = (configured: boolean, source: 'secret' | 'dashboard' | null, last4: string | null) =>
+    c.json({ configured, source, last4, provider });
+  if (secret) {
+    return status(true, 'secret', secret.slice(-4));
   }
-  const stored = await anthropicKey(c.env);
-  if (stored) return c.json({ configured: true, source: 'dashboard', last4: stored.slice(-4) });
-  return c.json({ configured: false, source: null, last4: null });
+  const stored = await aiKey(c.env, provider);
+  if (stored) return status(true, 'dashboard', stored.slice(-4));
+  return status(false, null, null);
 });
 
 app.put('/dashboard/ai-key', async (c) => {
-  if (c.env.ANTHROPIC_API_KEY) {
-    return c.json({ error: 'The key is set as a wrangler secret on this deployment; change it with `npx wrangler secret put ANTHROPIC_API_KEY`.' }, 409);
+  const body = await c.req.json<{ key: string; provider?: string }>();
+  const provider = aiProviderFrom(c, body);
+  const info = PROVIDER_INFO[provider];
+  const secret = provider === 'meta' ? c.env.META_API_KEY : c.env.ANTHROPIC_API_KEY;
+  if (secret) {
+    return c.json({ error: `The key is set as a wrangler secret on this deployment; change it with \`npx wrangler secret put ${info.secretName}\`.` }, 409);
   }
-  const { key } = await c.req.json<{ key: string }>();
-  const trimmed = (key ?? '').trim();
-  if (!/^sk-ant-/.test(trimmed)) {
-    return c.json({ error: 'That does not look like an Anthropic API key (they start with sk-ant-).' }, 400);
+  const trimmed = (body.key ?? '').trim();
+  if (!trimmed.startsWith(info.keyPrefix)) {
+    return c.json({ error: `That does not look like a ${info.name} API key (they start with ${info.keyPrefix}).` }, 400);
   }
+  const configKey = provider === 'meta' ? 'meta_api_key' : 'anthropic_api_key';
   await c.env.DB.prepare(
-    "INSERT INTO server_config (key, value) VALUES ('anthropic_api_key', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+    'INSERT INTO server_config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
   )
-    .bind(trimmed)
+    .bind(configKey, trimmed)
     .run();
-  primeKeyCache(trimmed);
-  return c.json({ configured: true, source: 'dashboard', last4: trimmed.slice(-4) });
+  primeKeyCache(provider, trimmed);
+  return c.json({ configured: true, source: 'dashboard', last4: trimmed.slice(-4), provider });
 });
 
 app.delete('/dashboard/ai-key', async (c) => {
-  await c.env.DB.prepare("DELETE FROM server_config WHERE key = 'anthropic_api_key'").run();
-  primeKeyCache(null);
-  return c.json({ configured: Boolean(c.env.ANTHROPIC_API_KEY), source: c.env.ANTHROPIC_API_KEY ? 'secret' : null, last4: c.env.ANTHROPIC_API_KEY?.slice(-4) ?? null });
+  const provider = aiProviderFrom(c);
+  const configKey = provider === 'meta' ? 'meta_api_key' : 'anthropic_api_key';
+  await c.env.DB.prepare('DELETE FROM server_config WHERE key = ?').bind(configKey).run();
+  primeKeyCache(provider, null);
+  const secret = provider === 'meta' ? c.env.META_API_KEY : c.env.ANTHROPIC_API_KEY;
+  return c.json({
+    configured: Boolean(secret),
+    source: secret ? 'secret' : null,
+    last4: secret?.slice(-4) ?? null,
+    provider,
+  });
 });
 
 // ---------- dashboard: overrides ----------

@@ -38,7 +38,7 @@ import type {
   Settings,
   TestResponse,
 } from '../../../shared/types';
-import { DEFAULT_SETTINGS, MODEL_CHOICES } from '../../../shared/types';
+import { DEFAULT_SETTINGS, MODEL_CHOICES, PROVIDER_INFO, providerForModel } from '../../../shared/types';
 
 const DISTRACTION_TOGGLES: Array<{ key: keyof DistractionSettings; label: string; hint?: string }> = [
   { key: 'hideHomeFeed', label: 'Hide the home feed entirely', hint: 'Kids search or use subscriptions instead of scrolling' },
@@ -109,6 +109,21 @@ export default function CriteriaPage() {
   const setDistr = (patch: Partial<DistractionSettings>) =>
     setSettings({ ...settings, distractions: { ...DEFAULT_SETTINGS.distractions, ...distr, ...patch } });
 
+  // The AI key shown/configured always follows the selected model: picking a
+  // Muse model swaps the credential form to the Meta Model API key.
+  const provider = providerForModel(settings.model);
+  const providerInfo = PROVIDER_INFO[provider];
+
+  useEffect(() => {
+    setAiStatus(null); // don't flash the previous provider's key status
+    setAiKeyInput('');
+    setAiMsg(null);
+    void api
+      .getAiKey(provider)
+      .then(setAiStatus)
+      .catch(() => undefined);
+  }, [provider]);
+
   useEffect(() => {
     void api
       .getPolicy()
@@ -124,17 +139,13 @@ export default function CriteriaPage() {
         setLoaded(true);
       })
       .catch(() => setMsg({ text: 'Could not load policy', kind: 'error' }));
-    void api
-      .getAiKey()
-      .then(setAiStatus)
-      .catch(() => undefined);
   }, []);
 
   const saveAiKey = async () => {
     setSavingKey(true);
     setAiMsg(null);
     try {
-      setAiStatus(await api.putAiKey(aiKeyInput));
+      setAiStatus(await api.putAiKey(aiKeyInput, provider));
       setAiKeyInput('');
       setAiMsg({ text: 'Key saved — filtering uses it immediately.', kind: 'ok' });
     } catch (e) {
@@ -147,7 +158,7 @@ export default function CriteriaPage() {
   const removeAiKey = async () => {
     setAiMsg(null);
     try {
-      setAiStatus(await api.deleteAiKey());
+      setAiStatus(await api.deleteAiKey(provider));
       setAiMsg({ text: 'Key removed. Filtering will fail closed until a new key is added.', kind: 'ok' });
     } catch (e) {
       setAiMsg({ text: e instanceof Error ? e.message : 'Could not remove the key', kind: 'error' });
@@ -532,23 +543,24 @@ export default function CriteriaPage() {
           <div>
             <Title order={4}>AI connection</Title>
             <Text size="sm" c="dimmed">
-              The Anthropic API key this server uses to judge content. Your server talks straight
-              to Anthropic — nobody else ever sees your key or your kids' activity.
+              The {providerInfo.name} API key this server uses to judge content. Your server talks
+              straight to {providerInfo.name} — nobody else ever sees your key or your kids'
+              activity. The key asked for here follows the model you pick above.
             </Text>
           </div>
           {aiStatus?.configured ? (
             <Alert color="teal" icon={<IconKey size={16} />}>
               Connected — key ending in …{aiStatus.last4}
               {aiStatus.source === 'secret'
-                ? '. It was set as a deploy secret; change it with npx wrangler secret put ANTHROPIC_API_KEY.'
+                ? `. It was set as a deploy secret; change it with npx wrangler secret put ${providerInfo.secretName}.`
                 : '.'}
             </Alert>
           ) : (
             <Alert color="red" icon={<IconAlertCircle size={16} />}>
               No API key configured — all filtering fails closed (everything is blocked) until one
               is added. Get one at{' '}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
-                console.anthropic.com
+              <a href={providerInfo.keyUrl} target="_blank" rel="noreferrer">
+                {providerInfo.keyUrlLabel}
               </a>
               .
             </Alert>
@@ -557,8 +569,8 @@ export default function CriteriaPage() {
             <Group wrap="nowrap" align="flex-end">
               <PasswordInput
                 style={{ flex: 1 }}
-                label={aiStatus?.configured ? 'Replace the key' : 'Anthropic API key'}
-                placeholder="sk-ant-…"
+                label={aiStatus?.configured ? 'Replace the key' : `${providerInfo.name} API key`}
+                placeholder={providerInfo.keyPlaceholder}
                 value={aiKeyInput}
                 onChange={(e) => setAiKeyInput(e.currentTarget.value)}
               />

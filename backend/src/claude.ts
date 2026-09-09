@@ -1,7 +1,11 @@
-import type { ChannelMeta, Decision, Verdict, VideoMeta } from '../../shared/types';
+import type { AiProvider, ChannelMeta, Decision, Verdict, VideoMeta } from '../../shared/types';
+import { PROVIDER_INFO, providerForModel } from '../../shared/types';
 import type { Env } from './env';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
+// Meta's Model API speaks the Anthropic Messages format, so the same request
+// shape works against it — only the base URL and the key change.
+const META_API_URL = 'https://api.meta.ai/v1/messages';
 
 const RUBRIC = `You are a parental-control classifier for YouTube. A parent has written criteria describing what their child may watch. You will receive metadata about YouTube channels or individual videos, and you must decide for each item:
 
@@ -72,27 +76,39 @@ interface ClaudeResult {
   error?: string;
 }
 
-// The Anthropic key comes from the wrangler secret when set, else from the
+// The AI key comes from the wrangler secret when set, else from the
 // dashboard-configured value in D1 (one-click deploys have no secrets).
 // Cached per isolate for a minute so evaluations don't add a D1 read each.
-let keyCache: { value: string | null; at: number } | null = null;
+// Each provider has its own secret name, config key, and cache slot.
+const keyCaches: Record<AiProvider, { value: string | null; at: number } | null> = {
+  anthropic: null,
+  meta: null,
+};
 
-export function primeKeyCache(value: string | null): void {
-  keyCache = { value, at: Date.now() };
+const CONFIG_KEYS: Record<AiProvider, string> = {
+  anthropic: 'anthropic_api_key',
+  meta: 'meta_api_key',
+};
+
+export function primeKeyCache(provider: AiProvider, value: string | null): void {
+  keyCaches[provider] = { value, at: Date.now() };
 }
 
-export async function anthropicKey(env: Env): Promise<string | null> {
-  if (env.ANTHROPIC_API_KEY) return env.ANTHROPIC_API_KEY;
-  if (keyCache && Date.now() - keyCache.at < 60_000) return keyCache.value;
+export async function aiKey(env: Env, provider: AiProvider): Promise<string | null> {
+  const secret = provider === 'meta' ? env.META_API_KEY : env.ANTHROPIC_API_KEY;
+  if (secret) return secret;
+  const cached = keyCaches[provider];
+  if (cached && Date.now() - cached.at < 60_000) return cached.value;
   let value: string | null = null;
   try {
-    const row = await env.DB.prepare("SELECT value FROM server_config WHERE key = 'anthropic_api_key'")
+    const row = await env.DB.prepare('SELECT value FROM server_config WHERE key = ?')
+      .bind(CONFIG_KEYS[provider])
       .first<{ value: string }>();
     value = row?.value ?? null;
   } catch {
     value = null; // table may not exist yet on older deployments
   }
-  keyCache = { value, at: Date.now() };
+  keyCaches[provider] = { value, at: Date.now() };
   return value;
 }
 
@@ -115,18 +131,22 @@ async function callClaude(
   schema: object,
   effort?: 'low' | 'medium' | 'high',
 ): Promise<ClaudeResult> {
-  const apiKey = await anthropicKey(env);
+  const provider = providerForModel(model);
+  const apiKey = await aiKey(env, provider);
   if (!apiKey) {
     return {
       ok: false,
       refused: false,
-      error: 'No Anthropic API key configured — open your dashboard and add one under AI connection',
+      error: `No ${PROVIDER_INFO[provider].name} API key configured — open your dashboard and add one under AI connection`,
     };
   }
+  // supportsEffort/supportsFallbacks only match Claude model ids, so nothing
+  // Anthropic-only (effort, server-side fallbacks) is ever sent to Meta.
+  const apiLabel = provider === 'meta' ? 'Meta API' : 'Claude API';
   const useFallbacks = supportsFallbacks(model);
   let res: Response;
   try {
-    res = await fetch(API_URL, {
+    res = await fetch(provider === 'meta' ? META_API_URL : API_URL, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -161,14 +181,14 @@ async function callClaude(
   } catch (e) {
     // A thrown fetch (network/DNS/timeout) must degrade to an unsure verdict,
     // not a 500 — otherwise nothing is stored and nothing is diagnosable.
-    const error = `Claude API fetch threw: ${e instanceof Error ? e.message : String(e)}`;
+    const error = `${apiLabel} fetch threw: ${e instanceof Error ? e.message : String(e)}`;
     console.error(error);
     return { ok: false, refused: false, error };
   }
 
   if (!res.ok) {
     const body = await res.text();
-    const error = `Claude API ${res.status}: ${body.slice(0, 300)}`;
+    const error = `${apiLabel} ${res.status}: ${body.slice(0, 300)}`;
     console.error(error); // visible via `wrangler tail` when debugging
     return { ok: false, refused: false, error };
   }

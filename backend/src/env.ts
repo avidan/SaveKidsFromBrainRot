@@ -8,6 +8,13 @@ export interface Env {
    * when present, always wins.
    */
   ANTHROPIC_API_KEY?: string;
+  /**
+   * Optional: Meta Model API key for Muse Spark models (api.meta.ai).
+   * Same precedence as ANTHROPIC_API_KEY: when unset, the key stored via the
+   * dashboard (server_config table) is used instead. The secret, when present,
+   * always wins.
+   */
+  META_API_KEY?: string;
   /** Optional: enables email notifications (wrangler secret put RESEND_API_KEY). */
   RESEND_API_KEY?: string;
   /** Optional: the From address for notification emails. */
