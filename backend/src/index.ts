@@ -189,7 +189,7 @@ app.post('/auth/signup', async (c) => {
   const token = randomToken();
   await db
     .prepare('INSERT INTO sessions (token, family_id, expires_at) VALUES (?, ?, ?)')
-    .bind(token, familyId, now() + SESSION_TTL_MS)
+    .bind(await sha256Hex(token), familyId, now() + SESSION_TTL_MS)
     .run();
   return c.json({ sessionToken: token });
 });
@@ -208,14 +208,18 @@ app.post('/auth/login', async (c) => {
   const token = randomToken();
   await db
     .prepare('INSERT INTO sessions (token, family_id, expires_at) VALUES (?, ?, ?)')
-    .bind(token, fam.id, now() + SESSION_TTL_MS)
+    .bind(await sha256Hex(token), fam.id, now() + SESSION_TTL_MS)
     .run();
   return c.json({ sessionToken: token });
 });
 
 app.post('/auth/logout', async (c) => {
   const token = bearer(c.req.header('Authorization'));
-  if (token) await c.env.DB.prepare('DELETE FROM sessions WHERE token = ?').bind(token).run();
+  if (token) {
+    await c.env.DB.prepare('DELETE FROM sessions WHERE token = ?')
+      .bind(await sha256Hex(token))
+      .run();
+  }
   return c.json({ ok: true });
 });
 
@@ -286,7 +290,7 @@ app.use('/dashboard/*', async (c, next) => {
   const token = bearer(c.req.header('Authorization'));
   if (!token) return c.json({ error: 'Missing session token' }, 401);
   const session = await c.env.DB.prepare('SELECT family_id, expires_at FROM sessions WHERE token = ?')
-    .bind(token)
+    .bind(await sha256Hex(token))
     .first<{ family_id: string; expires_at: number }>();
   if (!session || session.expires_at < now()) return c.json({ error: 'Session expired' }, 401);
   c.set('familyId', session.family_id);
