@@ -15,17 +15,22 @@ few dollars a month per family on the default model).
 
 ### Easiest: one click, no terminal
 
+Needs a **free GitHub account** (or GitLab) — Cloudflare copies the project
+into your account, which is what makes future updates one-click. You'll never
+have to touch the code; creating an account takes a minute. No GitHub and
+don't want one? Use the terminal path below instead — it needs none.
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/avidan/SaveKidsFromBrainRot)
 
-That button forks the project to your GitHub account, creates the database, and
-deploys the Worker + dashboard on your Cloudflare account. If it asks for the
-project's **root directory**, enter `backend`. When it finishes, open the
+That button copies the project to your GitHub account, creates the database,
+and deploys the Worker + dashboard on your Cloudflare account. If it asks for
+the project's **root directory**, enter `backend`. When it finishes, open the
 `https://skfbr-backend.<your-subdomain>.workers.dev` URL it gives you — the
 database sets itself up on first visit, and the onboarding wizard collects your
-Anthropic API key. Bonus: because it's a fork, Cloudflare redeploys
-automatically whenever you pull in updates on GitHub ("Sync fork").
+Anthropic API key. Updating later is one click too: on your GitHub copy, press
+**Sync fork** and Cloudflare redeploys automatically.
 
-### Or: one command in the terminal
+### Or: one command in the terminal (no GitHub account needed)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/avidan/SaveKidsFromBrainRot/main/install.sh | bash

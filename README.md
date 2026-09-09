@@ -14,12 +14,14 @@ URL) to your own free Cloudflare account with one click — no terminal needed:
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/avidan/SaveKidsFromBrainRot)
 
-(If it asks for the project's root directory, enter `backend`.) When the deploy
-finishes, open your new `*.workers.dev` URL, create the parent account, and the
-onboarding wizard walks you through the rest — including pasting your Anthropic
-API key, so you never touch a config file.
+(The button needs a free GitHub account — Cloudflare copies the project into it,
+which is what makes updates one-click later. If it asks for the project's root
+directory, enter `backend`.) When the deploy finishes, open your new
+`*.workers.dev` URL, create the parent account, and the onboarding wizard walks
+you through the rest — including pasting your Anthropic API key, so you never
+touch a config file.
 
-Prefer the terminal? The same deploy as one command:
+No GitHub account? The same deploy as one terminal command, no GitHub needed:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/avidan/SaveKidsFromBrainRot/main/install.sh | bash
