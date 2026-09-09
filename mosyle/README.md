@@ -1,7 +1,12 @@
 # Deploying SaveKidsFromBrainRot via MDM (Mosyle etc.)
 
-> No MDM? You don't need this folder — the dashboard's **Devices → Download Mac
-> setup profile** button generates a ready-to-install profile per device.
+MDM — "mobile device management" — is the kind of remote-management service
+(Mosyle, Jamf, Kandji, …) that schools and companies use to push settings to
+whole fleets of computers. This folder is only for people who already run one.
+
+> No MDM? That's the normal case — you don't need this folder. The dashboard's
+> **Devices → Download Mac setup profile** button generates a ready-to-install
+> profile per device that does the same job on a home Mac.
 
 The extension is force-installed through Chrome enterprise policy from the
 **Chrome Web Store** (unlisted listing):

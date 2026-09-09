@@ -75,24 +75,29 @@ SaveKidsFromBrainRot → on → set `youtube.com` and `m.youtube.com` to **Allow
 
 Known platform differences (already handled in code, listed for awareness):
 
-- **No managed storage on iOS** → no MDM auto-pairing; pairing codes only.
+- **No managed storage on iOS** → no automatic pairing via remote device
+  management; pairing codes only.
 - **No `chrome.alarms` guarantee** → background sync falls back to a timer;
   the 60-second heartbeat refresh while YouTube is open is unaffected.
 - **Parent-revoke unpairing** works the same as on desktop (401 → self-unpair).
 
 ## 5. Lock the iPad down (the part that makes it real)
 
-Via Mosyle (supervised iPad) or, minimally, Screen Time with a parent passcode:
+Two ways to do this: an **MDM** — "mobile device management," a remote-management
+service like Mosyle or Jamf that schools and companies use to control devices
+(only relevant if you already run one, on a supervised iPad) — or, for everyone
+else, Apple's built-in **Screen Time** with a parent passcode:
 
-- **Remove/block the YouTube app** and block reinstalling (restrict App Store
-  installs, or app blocklist in MDM).
+- **Remove/block the YouTube app** and block reinstalling (Screen Time →
+  Content & Privacy Restrictions → don't allow installing apps; or the app
+  blocklist in your MDM).
 - **Block other browsers** (Chrome, Firefox, Brave, Arc…) the same way.
 - **Keep Safari** as the only browser; the extension filters it.
-- **Prevent the kid from disabling the extension:** on recent iPadOS, MDM can
-  manage Safari extensions (force-enabled state + website access) — check
-  Mosyle's Safari extension management payload for your iPadOS version. If
-  unavailable, a Screen Time passcode on Settings changes is the fallback
-  (weaker: verify the kid can't reach Settings → Safari → Extensions).
+- **Prevent the kid from disabling the extension:** without an MDM, a Screen
+  Time passcode on Settings changes is the tool (verify the kid can't reach
+  Settings → Safari → Extensions). With an MDM on recent iPadOS, Safari
+  extensions can be managed directly (force-enabled state + website access) —
+  check Mosyle's Safari extension management payload for your iPadOS version.
 
 ## 6. Distribute (beyond your own cable)
 
@@ -103,5 +108,6 @@ Via Mosyle (supervised iPad) or, minimally, Screen Time with a parent passcode:
   ships. Parental-control apps get a closer review; the self-hosted design
   (app does nothing until paired with the family's own server) is the story
   to tell in review notes.
-- **Custom app via Apple Business Manager + Mosyle** — private distribution
-  to your own fleet, no public review.
+- **Custom app via Apple Business Manager + an MDM** (e.g. Mosyle) — private
+  distribution to your own managed devices, no public review. Only relevant
+  if you run device-management software already.

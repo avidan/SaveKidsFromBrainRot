@@ -71,7 +71,7 @@ great."*
 > the kid's Mac (System Settings → Privacy & Security → Profiles), and restart
 > Chrome. That force-installs the extension from the Chrome Web Store, pairs
 > it automatically, and disables incognito/guest mode so it can't be bypassed.
-> No MDM needed.
+> No extra software or IT tools needed — it works on any Mac.
 
 On the kid's computer, install it from the Chrome Web Store:
 
@@ -106,8 +106,12 @@ in your dashboard. Your kid's YouTube starts filtering immediately.
 - **Talk to it from Claude**: dashboard → **API** tab → create a key, then add
   it as a connector on claude.ai. "What did the kids watch today?", "pause
   YouTube for an hour", "approve that request" all work conversationally.
-- **MDM fleets**: if you do run an MDM (Mosyle etc.), see `mosyle/README.md`
-  for per-device profile templates; mint device tokens from the Devices tab.
+- **Managing many Macs?** If you use an MDM — "mobile device management,"
+  the kind of remote-management service (Mosyle, Jamf, …) that schools and
+  companies use to configure fleets of computers — see `mosyle/README.md` for
+  per-device profile templates; mint device tokens from the Devices tab. Most
+  families don't have one and don't need it: the Mac setup profile above does
+  the same job for a home Mac.
 
 ## Updating later
 
