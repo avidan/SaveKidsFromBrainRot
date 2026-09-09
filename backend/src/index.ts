@@ -55,6 +55,7 @@ app.onError((err, c) => {
 // request bootstraps it here. schema.sql is idempotent, but we still gate on
 // a table probe so warm isolates skip the check entirely.
 let schemaChecked = false;
+let rateLimitTableEnsured = false;
 app.use('*', async (c, next) => {
   if (!schemaChecked) {
     try {
@@ -79,13 +80,17 @@ app.use('*', async (c, next) => {
     }
   }
   // Tables added after the initial schema need to exist on long-lived
-  // databases too — CREATE TABLE IF NOT EXISTS is cheap and idempotent.
-  try {
-    await c.env.DB.prepare(
-      'CREATE TABLE IF NOT EXISTS rate_limits (key TEXT NOT NULL, window_start INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (key, window_start))',
-    ).run();
-  } catch {
-    /* non-fatal; retried on the next request */
+  // databases too — but only once per isolate, not one schema write per
+  // request (that would double the D1 write quota burned by heartbeats).
+  if (!rateLimitTableEnsured) {
+    try {
+      await c.env.DB.prepare(
+        'CREATE TABLE IF NOT EXISTS rate_limits (key TEXT NOT NULL, window_start INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (key, window_start))',
+      ).run();
+      rateLimitTableEnsured = true;
+    } catch {
+      /* non-fatal; retried on the next request */
+    }
   }
   await next();
 });
