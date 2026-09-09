@@ -42,7 +42,22 @@ import { fetchChannelMetaServer, fetchVideoMetaServer, parseYouTubeUrl } from '.
 
 const app = new Hono<AppContext>();
 
-app.use('*', cors({ origin: '*', allowHeaders: ['Authorization', 'Content-Type'] }));
+// CORS: the dashboard is served same-origin and the extension talks to the
+// API from its own extension scheme, so arbitrary web origins get nothing.
+// Requests with no Origin (curl, server-to-server MCP clients) are unaffected
+// — CORS is a browser-only mechanism.
+app.use(
+  '*',
+  cors({
+    origin: (origin, c) => {
+      if (!origin) return origin; // non-browser client
+      if (origin === new URL(c.req.url).origin) return origin; // same-origin dashboard
+      if (/^(chrome-extension|safari-web-extension|moz-extension):\/\//.test(origin)) return origin; // the extension itself
+      return null; // refuse: some other website's JavaScript
+    },
+    allowHeaders: ['Authorization', 'Content-Type'],
+  }),
+);
 
 app.onError((err, c) => {
   console.error(`unhandled error on ${c.req.method} ${c.req.path}: ${err.stack ?? err.message}`);
@@ -999,6 +1014,12 @@ app.all('/mcp', async (c) => {
   if (!familyId) return c.json({ error: 'Invalid or missing API key' }, 401);
   return handleMcpRequest(c.env, familyId, c.req.raw);
 });
+// NOTE: putting the API key in the URL path is a deliberate trade-off —
+// claude.ai custom connectors require a bare URL with no way to attach a
+// Bearer header, so this is the only way to connect them. The key WILL end
+// up in server access logs, browser history, and any proxy logs in between,
+// so treat it as semi-public: rotate it from the dashboard if it leaks, and
+// prefer the Authorization: Bearer header route for everything else.
 app.all('/mcp/:key', async (c) => {
   const familyId = await familyFromApiKey(c, c.req.param('key'));
   if (!familyId) return c.json({ error: 'Invalid API key' }, 401);
