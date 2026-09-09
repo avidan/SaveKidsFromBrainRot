@@ -465,12 +465,14 @@ app.post('/evaluate/video', async (c) => {
     } satisfies EvaluateVideoResponse);
   }
 
-  // 2. Cache — videos are immutable, verdicts never expire.
+  // 2. Cache — video verdicts expire after videoTtlDays (default 90d), so
+  // stale AI judgments are re-checked as models and context improve.
+  const videoTtlMs = (policy.settings.videoTtlDays ?? 90) * 24 * 60 * 60 * 1000;
   const cached = await db
     .prepare('SELECT decision, confidence, reason, evaluated_at FROM video_verdicts WHERE family_id = ? AND mode = ? AND video_id = ?')
     .bind(familyId, mode, video.videoId)
     .first<{ decision: Verdict['decision']; confidence: number; reason: string; evaluated_at: number }>();
-  if (cached) {
+  if (cached && now() - cached.evaluated_at < videoTtlMs) {
     return c.json({
       verdict: {
         decision: cached.decision,

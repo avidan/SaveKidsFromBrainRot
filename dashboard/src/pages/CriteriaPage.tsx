@@ -309,6 +309,14 @@ export default function CriteriaPage() {
               />
             </Grid.Col>
             <Grid.Col span={{ base: 12, sm: 6 }}>
+              <NumberInput
+                label="Re-check videos after (days)"
+                min={1}
+                value={settings.videoTtlDays ?? 90}
+                onChange={(v) => setSettings({ ...settings, videoTtlDays: Math.max(1, Number(v) || 1) })}
+              />
+            </Grid.Col>
+            <Grid.Col span={{ base: 12, sm: 6 }}>
               <Select
                 label="If the AI can't be reached"
                 data={[
