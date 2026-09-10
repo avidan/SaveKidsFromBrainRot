@@ -1076,6 +1076,12 @@ app.all('/mcp', async (c) => {
   if (!familyId) return c.json({ error: 'Invalid or missing API key' }, 401);
   return handleMcpRequest(c.env, familyId, c.req.raw);
 });
+// NOTE: putting the API key in the URL path is a deliberate trade-off —
+// claude.ai custom connectors require a bare URL with no way to attach a
+// Bearer header, so this is the only way to connect them. The key WILL end
+// up in server access logs, browser history, and any proxy logs in between,
+// so treat it as semi-public: rotate it from the dashboard if it leaks, and
+// prefer the Authorization: Bearer header route for everything else.
 app.all('/mcp/:key', async (c) => {
   const familyId = await familyFromApiKey(c, c.req.param('key'));
   if (!familyId) return c.json({ error: 'Invalid API key' }, 401);
