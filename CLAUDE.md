@@ -23,10 +23,12 @@ all import it; change shapes there first.
 ## The filtering model
 
 - **Two-tier AI judging** (`backend/src/claude.ts`): channel-level triage
-  (batched, cheap, `effort: 'low'`, cached 30 days) filters feeds wholesale;
-  video-level judging runs at click time (cached forever — videos are
-  immutable), with an escalation pass (thumbnail via Claude vision + transcript
-  excerpt) for borderline calls.
+  (batched, cheap, `effort: 'low'`, cached `channelTtlDays`, default 30)
+  filters feeds wholesale; video-level judging runs at click time (cached
+  `videoTtlDays`, default 90 — was "forever" until Sep 2026; expiry lets
+  re-checks pick up model/criteria-interpretation drift), with an escalation
+  pass (thumbnail via Claude vision + transcript excerpt) for borderline
+  calls.
 - **Verdicts**: `allow` | `block` | `unsure`. Unsure and AI-blocks land in the
   parent **review queue**; parent decisions become permanent **overrides**,
   which always beat the AI and are global across criteria modes.
@@ -105,6 +107,11 @@ all import it; change shapes there first.
   inline. `mcp.ts` is a hand-rolled Streamable-HTTP JSON-RPC server (11 tools).
 - **Signups auto-lock after the first family** (each account spends the
   operator's Anthropic key); multi-family is opt-in via `OPEN_SIGNUPS` secret.
+- **Auth hardening**: parent session tokens are stored SHA-256-hashed (raw
+  token returned once at login); login / password-reset / pairing are
+  rate-limited per client IP via fixed-window counters in the `rate_limits`
+  D1 table (auto-created once per isolate by middleware, so old deployments
+  need no manual migration).
 - **Claude API model gates** (`claude.ts`): `output_config.effort` and
   `fallbacks` are only sent to models that accept them (`supportsEffort` /
   `supportsFallbacks`) — sending them to e.g. `claude-haiku-4-5` 400s every
