@@ -50,6 +50,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
+    // A 401 on a dashboard call means the stored session is dead (expired or
+    // invalidated server-side). Clear it and reload so the login screen
+    // appears, instead of rendering a dashboard full of failed panels.
+    if (res.status === 401 && path.startsWith('/dashboard') && token) {
+      setToken(null);
+      window.location.reload();
+    }
     throw new ApiError(res.status, (body.error as string) ?? `HTTP ${res.status}`);
   }
   return body as T;
