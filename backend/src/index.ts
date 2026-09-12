@@ -36,7 +36,7 @@ import { anthropicKey, evaluateChannels, evaluateVideo, primeKeyCache } from './
 import type { AppContext } from './env';
 import schemaSql from '../schema.sql';
 import { handleMcpRequest } from './mcp';
-import { activeMode, criteriaFor, effectiveMode } from './mode';
+import { activeMode, criteriaFor, effectiveMode, localDate } from './mode';
 import { notifyParent, sendDirect, shouldNotify } from './notify';
 import * as service from './service';
 import { fetchChannelMetaServer, fetchVideoMetaServer, parseYouTubeUrl } from './yt';
@@ -56,6 +56,7 @@ app.onError((err, c) => {
 // a table probe so warm isolates skip the check entirely.
 let schemaChecked = false;
 let rateLimitTableEnsured = false;
+let bonusColumnsEnsured = false;
 app.use('*', async (c, next) => {
   if (!schemaChecked) {
     try {
@@ -91,6 +92,21 @@ app.use('*', async (c, next) => {
     } catch {
       /* non-fatal; retried on the next request */
     }
+  }
+  // Columns added after the initial schema: ALTER fails harmlessly once the
+  // column exists, so a guarded attempt per isolate migrates old databases.
+  if (!bonusColumnsEnsured) {
+    try {
+      await c.env.DB.prepare('ALTER TABLE devices ADD COLUMN bonus_minutes INTEGER NOT NULL DEFAULT 0').run();
+    } catch {
+      /* column already exists */
+    }
+    try {
+      await c.env.DB.prepare('ALTER TABLE devices ADD COLUMN bonus_date TEXT').run();
+    } catch {
+      /* column already exists */
+    }
+    bonusColumnsEnsured = true;
   }
   await next();
 });
@@ -414,7 +430,14 @@ for (const route of deviceRoutes) {
 
 app.get('/policy', async (c) => {
   const policy = await loadPolicy(c.env.DB, c.get('familyId'));
-  return c.json(policy);
+  // Per-device "more time" bonus rides along on the family policy — this
+  // route is device-authed, so the response can carry device-scoped data.
+  const row = await c.env.DB.prepare('SELECT bonus_minutes, bonus_date FROM devices WHERE id = ?')
+    .bind(c.get('deviceId'))
+    .first<{ bonus_minutes: number; bonus_date: string | null }>();
+  const today = localDate(policy.settings.schedule.timezone);
+  const deviceBonusMinutes = row?.bonus_date === today ? row.bonus_minutes : 0;
+  return c.json({ ...policy, deviceBonusMinutes });
 });
 
 // ---------- device: channel evaluation ----------
@@ -787,18 +810,58 @@ app.delete('/dashboard/overrides/:kind/:targetId', async (c) => {
 
 app.get('/dashboard/devices', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, name, paired_at, last_seen_at FROM devices WHERE family_id = ? AND revoked = 0 ORDER BY paired_at DESC',
+    'SELECT id, name, paired_at, last_seen_at, bonus_minutes, bonus_date FROM devices WHERE family_id = ? AND revoked = 0 ORDER BY paired_at DESC',
   )
     .bind(c.get('familyId'))
-    .all<{ id: string; name: string; paired_at: number | null; last_seen_at: number | null }>();
+    .all<{ id: string; name: string; paired_at: number | null; last_seen_at: number | null; bonus_minutes: number; bonus_date: string | null }>();
+  const policy = await loadPolicy(c.env.DB, c.get('familyId'));
+  const today = localDate(policy.settings.schedule.timezone);
   const devices: DeviceInfo[] = rows.results.map((d) => ({
     id: d.id,
     name: d.name,
     pairedAt: d.paired_at,
     lastSeenAt: d.last_seen_at,
+    bonusMinutesToday: d.bonus_date === today ? d.bonus_minutes : 0,
   }));
   return c.json({ devices });
 });
+
+// ---------- dashboard: per-device "more time" for today ----------
+
+app.post('/dashboard/devices/:id/extend', async (c) => {
+  const familyId = c.get('familyId');
+  const { minutes } = await c.req.json<{ minutes: number }>();
+  if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 12 * 60) {
+    return c.json({ error: 'minutes must be between 1 and 720' }, 400);
+  }
+  const policy = await loadPolicy(c.env.DB, familyId);
+  const today = localDate(policy.settings.schedule.timezone);
+  const device = await c.env.DB.prepare(
+    'SELECT id, bonus_minutes, bonus_date FROM devices WHERE id = ? AND family_id = ? AND revoked = 0',
+  )
+    .bind(c.req.param('id'), familyId)
+    .first<{ id: string; bonus_minutes: number; bonus_date: string | null }>();
+  if (!device) return c.json({ error: 'Unknown device' }, 404);
+  // A stale bonus from a previous day is replaced, not added to.
+  const bonusMinutesToday = (device.bonus_date === today ? device.bonus_minutes : 0) + Math.round(minutes);
+  await c.env.DB.prepare('UPDATE devices SET bonus_minutes = ?, bonus_date = ? WHERE id = ?')
+    .bind(bonusMinutesToday, today, device.id)
+    .run();
+  return c.json({ bonusMinutesToday });
+});
+
+app.delete('/dashboard/devices/:id/extend', async (c) => {
+  const res = await c.env.DB.prepare(
+    'UPDATE devices SET bonus_minutes = 0, bonus_date = NULL WHERE id = ? AND family_id = ?',
+  )
+    .bind(c.req.param('id'), c.get('familyId'))
+    .run();
+  if (!res.meta.changes) return c.json({ error: 'Unknown device' }, 404);
+  return c.json({ bonusMinutesToday: 0 });
+});
+
+app.get('/dashboard/screen-time', async (c) =>
+  c.json({ screenTime: await service.screenTimeToday(c.env, c.get('familyId')) }));
 
 app.post('/dashboard/devices/pair-code', async (c) => {
   const familyId = c.get('familyId');

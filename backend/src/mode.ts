@@ -65,3 +65,21 @@ export function effectiveMode(policy: Policy, at: number = Date.now()): Criteria
   if (!policy.weekendCriteria.trim()) return 'week';
   return activeMode(policy.settings, at);
 }
+
+/**
+ * Today's calendar date (YYYY-MM-DD) in the family's timezone — the day a
+ * "more time" bonus applies to. Invalid timezone falls back to UTC.
+ */
+export function localDate(timezone: string, at: number = Date.now()): string {
+  try {
+    // en-CA formats as YYYY-MM-DD directly.
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(at);
+  } catch {
+    return new Date(at).toISOString().slice(0, 10);
+  }
+}

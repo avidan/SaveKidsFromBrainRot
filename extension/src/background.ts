@@ -312,10 +312,13 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
   const windowMode = policy?.activeMode === 'weekend' ? 'weekend' : 'week';
   const activeMode = cacheMode(policy);
   // Weekend can carry its own daily limit; null falls back to the week limit.
-  const limitMinutes =
+  const baseLimitMinutes =
     windowMode === 'weekend'
       ? policy?.settings.weekendDailyLimitMinutes ?? policy?.settings.dailyLimitMinutes ?? null
       : policy?.settings.dailyLimitMinutes ?? null;
+  // Parent-granted "more time" for this device today rides on the policy.
+  const limitMinutes =
+    baseLimitMinutes === null ? null : baseLimitMinutes + (policy?.deviceBonusMinutes ?? 0);
 
   let usage = (await get<Usage>('usage')) ?? { date: today(), seconds: 0 };
   if (usage.date !== today()) usage = { date: today(), seconds: 0 }; // midnight reset
@@ -339,13 +342,17 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
 
   const distractions = policy?.settings.distractions;
   const quietFiltering = policy?.settings.quietFiltering ?? true;
-  if (limitMinutes === null) return { remainingSeconds: null, pausedUntil, activeMode, distractions, quietFiltering };
+  const timeWarningMinutes = policy?.settings.timeWarningMinutes ?? null;
+  if (limitMinutes === null) {
+    return { remainingSeconds: null, pausedUntil, activeMode, distractions, quietFiltering, timeWarningMinutes };
+  }
   return {
     remainingSeconds: Math.max(0, limitMinutes * 60 - usage.seconds),
     pausedUntil,
     activeMode,
     distractions,
     quietFiltering,
+    timeWarningMinutes,
   };
 }
 

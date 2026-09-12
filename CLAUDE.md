@@ -45,6 +45,15 @@ all import it; change shapes there first.
   `(family_id, mode, target)` and extension storage keys
   `channelVerdicts:<mode>`), so schedule flips never re-evaluate anything.
   Editing one mode's criteria clears only that mode's caches.
+- **Time limits** (dashboard **Time** tab): family-wide `dailyLimitMinutes` /
+  `weekendDailyLimitMinutes` plus `timeWarningMinutes` (kid-facing countdown
+  chip when ≤ N minutes remain; null = off). Per-device "more time today"
+  bonus lives in `devices.bonus_minutes`/`bonus_date` (YYYY-MM-DD in the
+  family timezone via `localDate()` in `mode.ts`), granted from
+  `/dashboard/devices/:id/extend`, and rides to the device on `/policy` as
+  `deviceBonusMinutes` (device-authed route, so it can carry device-scoped
+  data). Extension counts usage locally, adds the bonus to the limit, and
+  un-latches the "time's up" overlay when remaining time recovers.
 - **Cache-invalidation contract**: `policies.updated_at` bump ⇒ extensions drop
   local verdict caches on next sync. Bump it when verdict-relevant things
   change (criteria, overrides); do NOT bump for pause or mode flips.

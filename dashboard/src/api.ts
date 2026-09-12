@@ -7,6 +7,7 @@ import type {
   Override,
   Policy,
   ReviewItem,
+  ScreenTimeEntry,
   Settings,
   TestResponse,
 } from '../../shared/types';
@@ -108,6 +109,15 @@ export const api = {
     });
   },
   revokeDevice: (id: string) => request<{ ok: true }>(`/dashboard/devices/${id}`, { method: 'DELETE' }),
+
+  getScreenTime: () => request<{ screenTime: ScreenTimeEntry[] }>('/dashboard/screen-time'),
+  extendDevice: (id: string, minutes: number) =>
+    request<{ bonusMinutesToday: number }>(`/dashboard/devices/${id}/extend`, {
+      method: 'POST',
+      body: JSON.stringify({ minutes }),
+    }),
+  clearDeviceBonus: (id: string) =>
+    request<{ bonusMinutesToday: number }>(`/dashboard/devices/${id}/extend`, { method: 'DELETE' }),
 
   getReview: () => request<{ items: ReviewItem[] }>('/dashboard/review'),
   resolveReview: (id: number, action: 'allow' | 'block' | 'dismiss') =>

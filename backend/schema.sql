@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at INTEGER NOT NULL
 );
 
+-- Note: bonus_minutes/bonus_date were added later; existing deployments are
+-- migrated automatically by middleware in index.ts (guarded ALTERs).
 CREATE TABLE IF NOT EXISTS devices (
   id TEXT PRIMARY KEY,
   family_id TEXT NOT NULL,
@@ -24,7 +26,9 @@ CREATE TABLE IF NOT EXISTS devices (
   token TEXT UNIQUE,
   paired_at INTEGER,
   last_seen_at INTEGER,
-  revoked INTEGER NOT NULL DEFAULT 0
+  revoked INTEGER NOT NULL DEFAULT 0,
+  bonus_minutes INTEGER NOT NULL DEFAULT 0,  -- extra screen-time minutes for bonus_date
+  bonus_date TEXT                            -- YYYY-MM-DD in the family timezone
 );
 
 CREATE TABLE IF NOT EXISTS pairing_codes (

@@ -98,6 +98,12 @@ export interface Settings {
   dailyLimitMinutes: number | null; // null = no timer
   /** Separate daily limit while weekend rules are active; null = same as dailyLimitMinutes. */
   weekendDailyLimitMinutes: number | null;
+  /**
+   * Show the kid a countdown notice when this many minutes remain before the
+   * daily limit blocks YouTube ("15 minutes left today"). null = no warning,
+   * time just runs out.
+   */
+  timeWarningMinutes: number | null;
   blockShorts: boolean;
   /**
    * Quiet filtering: unvetted feed/search tiles are invisible until approved,
@@ -121,6 +127,7 @@ export const DEFAULT_SETTINGS: Settings = {
   checkAllowedChannels: true,
   dailyLimitMinutes: null,
   weekendDailyLimitMinutes: null,
+  timeWarningMinutes: 5,
   blockShorts: true,
   quietFiltering: true,
   filterEmbeds: true,
@@ -162,6 +169,12 @@ export interface Policy {
   /** Epoch ms until which ALL YouTube viewing is paused, or null when not paused. */
   pausedUntil: number | null;
   updatedAt: number;
+  /**
+   * Device-scoped: extra minutes granted to THIS device for today (parent
+   * "more time" button). Present only on device `/policy` responses — the
+   * dashboard's policy fetch has no device context.
+   */
+  deviceBonusMinutes?: number;
 }
 
 // ---- Device API payloads ----
@@ -217,6 +230,8 @@ export interface DeviceInfo {
   name: string;
   pairedAt: number | null;
   lastSeenAt: number | null;
+  /** Extra minutes granted for today via the Time tab (0 when none). */
+  bonusMinutesToday?: number;
 }
 
 export interface ActivityEvent {

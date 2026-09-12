@@ -276,17 +276,6 @@ export default function CriteriaPage() {
 
           <Grid gutter="sm">
             <Grid.Col span={{ base: 12, sm: 6 }}>
-              <NumberInput
-                label="Daily time limit (minutes)"
-                description="Blank = no limit"
-                min={0}
-                value={settings.dailyLimitMinutes ?? ''}
-                onChange={(v) =>
-                  setSettings({ ...settings, dailyLimitMinutes: v === '' || v === null ? null : Math.max(0, Number(v)) })
-                }
-              />
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, sm: 6 }}>
               <Select
                 label="AI model"
                 data={[
@@ -466,18 +455,9 @@ export default function CriteriaPage() {
                 />
               </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 6 }}>
-                <NumberInput
-                  label="Weekend daily limit (minutes)"
-                  description="Blank = same as the week limit"
-                  min={0}
-                  value={settings.weekendDailyLimitMinutes ?? ''}
-                  onChange={(v) =>
-                    setSettings({
-                      ...settings,
-                      weekendDailyLimitMinutes: v === '' || v === null ? null : Math.max(0, Number(v)),
-                    })
-                  }
-                />
+                <Text size="sm" c="dimmed" mt={26}>
+                  Daily time limits (including a separate weekend limit) live in the <b>Time</b> tab.
+                </Text>
               </Grid.Col>
             </Grid>
           )}

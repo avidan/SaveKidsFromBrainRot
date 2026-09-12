@@ -164,6 +164,36 @@ function removeOverlay(): void {
   overlayEl = null;
 }
 
+// ---------- time-left countdown chip ----------
+
+// Small corner notice shown when the daily limit is close ("12 minutes
+// left"). Deliberately visible — unlike quiet filtering, the countdown is
+// meant to be seen, so the end of the session isn't a surprise.
+let timeChipEl: HTMLElement | null = null;
+
+function showTimeChip(remainingSeconds: number): void {
+  const minutes = Math.max(1, Math.ceil(remainingSeconds / 60));
+  const label = minutes === 1 ? '1 minute of YouTube left today' : `${minutes} minutes of YouTube left today`;
+  if (!timeChipEl || !timeChipEl.isConnected) {
+    timeChipEl = document.createElement('div');
+    timeChipEl.className = 'skfbr-timechip';
+    const strong = document.createElement('div');
+    strong.className = 'skfbr-timechip-main';
+    const hint = document.createElement('div');
+    hint.className = 'skfbr-timechip-hint';
+    hint.textContent = 'Ask a grown-up if you need more time';
+    timeChipEl.append(strong, hint);
+    (document.body ?? document.documentElement).appendChild(timeChipEl);
+  }
+  const main = timeChipEl.querySelector('.skfbr-timechip-main');
+  if (main) main.textContent = `⏳ ${label}`;
+}
+
+function removeTimeChip(): void {
+  timeChipEl?.remove();
+  timeChipEl = null;
+}
+
 // ---------- video pausing (gate) ----------
 
 let pauseInterval: number | null = null;
@@ -744,14 +774,37 @@ function startHeartbeat(): void {
         currentMode = resp.activeMode;
         resetFiltering();
       }
-      if (resp.remainingSeconds !== null && resp.remainingSeconds <= 0 && !timeUp) {
-        timeUp = true;
-        holdPlayback();
-        showOverlay({
-          icon: 'time',
-          title: "That's all for today!",
-          message: 'Your YouTube time is used up. It resets tomorrow — go build something cool!',
-        });
+      if (resp.remainingSeconds !== null && resp.remainingSeconds <= 0) {
+        removeTimeChip();
+        if (!timeUp) {
+          timeUp = true;
+          holdPlayback();
+          showOverlay({
+            icon: 'time',
+            title: "That's all for today!",
+            message: 'Your YouTube time is used up. It resets tomorrow — go build something cool!',
+          });
+        }
+      } else {
+        // Time came back: the parent granted more minutes (or raised the
+        // limit). Clear the lock and re-run normal gating for this page.
+        if (timeUp) {
+          timeUp = false;
+          removeOverlay();
+          releasePlayback();
+          onNavigate();
+        }
+        const warnMinutes = resp.timeWarningMinutes ?? null;
+        if (
+          !IS_EMBED &&
+          warnMinutes !== null &&
+          resp.remainingSeconds !== null &&
+          resp.remainingSeconds <= warnMinutes * 60
+        ) {
+          showTimeChip(resp.remainingSeconds);
+        } else {
+          removeTimeChip();
+        }
       }
     })();
   }, 30_000);

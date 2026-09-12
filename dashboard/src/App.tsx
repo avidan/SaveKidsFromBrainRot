@@ -15,6 +15,7 @@ import {
   IconActivity,
   IconClipboardCheck,
   IconDevices,
+  IconHourglassHigh,
   IconKey,
   IconLogout,
   IconPin,
@@ -34,6 +35,7 @@ import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import OverridesPage from './pages/OverridesPage';
 import ReviewPage from './pages/ReviewPage';
+import TimePage from './pages/TimePage';
 
 const PAUSE_CHOICES = [
   { label: '15 minutes', value: '15' },
@@ -145,6 +147,7 @@ function PauseControl() {
 
 const TABS = [
   { value: 'criteria', label: 'Rules', icon: IconSparkles },
+  { value: 'time', label: 'Time', icon: IconHourglassHigh },
   { value: 'review', label: 'Review', icon: IconClipboardCheck },
   { value: 'overrides', label: 'Pinned', icon: IconPin },
   { value: 'devices', label: 'Devices', icon: IconDevices },
@@ -265,6 +268,7 @@ export default function App() {
           </Tabs>
 
           {tab === 'criteria' && <CriteriaPage />}
+          {tab === 'time' && <TimePage />}
           {tab === 'review' && <ReviewPage onChanged={() => setReviewCount((c) => Math.max(0, c - 1))} />}
           {tab === 'overrides' && <OverridesPage />}
           {tab === 'devices' && <DevicesPage />}

@@ -37,6 +37,8 @@ export interface HeartbeatResponse {
   distractions?: import('../../shared/types').DistractionSettings;
   /** Quiet filtering: hide unvetted tiles entirely instead of blurring them. */
   quietFiltering?: boolean;
+  /** Show the countdown chip when this many minutes (or fewer) remain; null = no warning. */
+  timeWarningMinutes?: number | null;
 }
 
 export interface PairResult {
