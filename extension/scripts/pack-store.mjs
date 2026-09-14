@@ -22,9 +22,15 @@ const STORE_DIR = join(ROOT, 'dist-store');
 const PEM = join(ROOT, 'skfbr-signing-key.pem');
 const ZIP = join(ROOT, 'skfbr-store.zip');
 
-if (!existsSync(PEM)) {
-  console.error('skfbr-signing-key.pem not found — required to preserve the extension ID on the store.');
-  process.exit(1);
+const havePem = existsSync(PEM);
+if (!havePem) {
+  console.warn(
+    '\nWARNING: skfbr-signing-key.pem not found — packing WITHOUT it.\n' +
+      'That is fine for UPDATES to the existing store item (the store already\n' +
+      'holds the key and keeps the ID), but would be fatal on a first upload.\n' +
+      'After uploading, verify the item ID is fkegepdokopkgklbpbkphdemnbinjhoc\n' +
+      'before publishing.\n',
+  );
 }
 
 execSync('node scripts/build.mjs', { cwd: ROOT, stdio: 'inherit' });
@@ -37,7 +43,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 delete manifest.key;
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 
-cpSync(PEM, join(STORE_DIR, 'key.pem'));
+if (havePem) cpSync(PEM, join(STORE_DIR, 'key.pem'));
 
 rmSync(ZIP, { force: true });
 execSync(`cd "${STORE_DIR}" && zip -qr "${ZIP}" .`, { stdio: 'inherit' });
