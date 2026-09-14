@@ -175,6 +175,12 @@ export interface Policy {
    * dashboard's policy fetch has no device context.
    */
   deviceBonusMinutes?: number;
+  /**
+   * Device-scoped: epoch ms from which THIS device is blocked until midnight
+   * (family timezone). In the future = a wind-down countdown is running;
+   * in the past = blocked now; null/absent = no block.
+   */
+  deviceBlockAt?: number | null;
 }
 
 // ---- Device API payloads ----
@@ -232,6 +238,8 @@ export interface DeviceInfo {
   lastSeenAt: number | null;
   /** Extra minutes granted for today via the Time tab (0 when none). */
   bonusMinutesToday?: number;
+  /** Epoch ms the device blocks (or blocked) until midnight; null = no block. */
+  blockAt?: number | null;
 }
 
 export interface ActivityEvent {

@@ -39,6 +39,12 @@ export interface HeartbeatResponse {
   quietFiltering?: boolean;
   /** Show the countdown chip when this many minutes (or fewer) remain; null = no warning. */
   timeWarningMinutes?: number | null;
+  /**
+   * Parent block for this device: epoch ms it takes (or took) effect, until
+   * midnight. Future = wind-down countdown (chip shows regardless of the
+   * warning threshold); past = blocked now.
+   */
+  blockAt?: number | null;
 }
 
 export interface PairResult {

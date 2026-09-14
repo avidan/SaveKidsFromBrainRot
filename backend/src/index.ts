@@ -106,6 +106,11 @@ app.use('*', async (c, next) => {
     } catch {
       /* column already exists */
     }
+    try {
+      await c.env.DB.prepare('ALTER TABLE devices ADD COLUMN block_at INTEGER').run();
+    } catch {
+      /* column already exists */
+    }
     bonusColumnsEnsured = true;
   }
   await next();
@@ -428,16 +433,25 @@ for (const route of deviceRoutes) {
 
 // ---------- device: policy sync ----------
 
+// A block (or pending wind-down curfew) is live when it hasn't fired yet, or
+// when it fired on the current family-timezone day — it expires at midnight.
+function liveBlockAt(blockAt: number | null | undefined, timezone: string): number | null {
+  if (!blockAt) return null;
+  if (blockAt > Date.now()) return blockAt; // pending curfew, may cross midnight
+  return localDate(timezone, blockAt) === localDate(timezone) ? blockAt : null;
+}
+
 app.get('/policy', async (c) => {
   const policy = await loadPolicy(c.env.DB, c.get('familyId'));
   // Per-device "more time" bonus rides along on the family policy — this
   // route is device-authed, so the response can carry device-scoped data.
-  const row = await c.env.DB.prepare('SELECT bonus_minutes, bonus_date FROM devices WHERE id = ?')
+  const row = await c.env.DB.prepare('SELECT bonus_minutes, bonus_date, block_at FROM devices WHERE id = ?')
     .bind(c.get('deviceId'))
-    .first<{ bonus_minutes: number; bonus_date: string | null }>();
-  const today = localDate(policy.settings.schedule.timezone);
-  const deviceBonusMinutes = row?.bonus_date === today ? row.bonus_minutes : 0;
-  return c.json({ ...policy, deviceBonusMinutes });
+    .first<{ bonus_minutes: number; bonus_date: string | null; block_at: number | null }>();
+  const tz = policy.settings.schedule.timezone;
+  const deviceBonusMinutes = row?.bonus_date === localDate(tz) ? row.bonus_minutes : 0;
+  const deviceBlockAt = liveBlockAt(row?.block_at, tz);
+  return c.json({ ...policy, deviceBonusMinutes, deviceBlockAt });
 });
 
 // ---------- device: channel evaluation ----------
@@ -810,18 +824,20 @@ app.delete('/dashboard/overrides/:kind/:targetId', async (c) => {
 
 app.get('/dashboard/devices', async (c) => {
   const rows = await c.env.DB.prepare(
-    'SELECT id, name, paired_at, last_seen_at, bonus_minutes, bonus_date FROM devices WHERE family_id = ? AND revoked = 0 ORDER BY paired_at DESC',
+    'SELECT id, name, paired_at, last_seen_at, bonus_minutes, bonus_date, block_at FROM devices WHERE family_id = ? AND revoked = 0 ORDER BY paired_at DESC',
   )
     .bind(c.get('familyId'))
-    .all<{ id: string; name: string; paired_at: number | null; last_seen_at: number | null; bonus_minutes: number; bonus_date: string | null }>();
+    .all<{ id: string; name: string; paired_at: number | null; last_seen_at: number | null; bonus_minutes: number; bonus_date: string | null; block_at: number | null }>();
   const policy = await loadPolicy(c.env.DB, c.get('familyId'));
-  const today = localDate(policy.settings.schedule.timezone);
+  const tz = policy.settings.schedule.timezone;
+  const today = localDate(tz);
   const devices: DeviceInfo[] = rows.results.map((d) => ({
     id: d.id,
     name: d.name,
     pairedAt: d.paired_at,
     lastSeenAt: d.last_seen_at,
     bonusMinutesToday: d.bonus_date === today ? d.bonus_minutes : 0,
+    blockAt: liveBlockAt(d.block_at, tz),
   }));
   return c.json({ devices });
 });
@@ -858,6 +874,35 @@ app.delete('/dashboard/devices/:id/extend', async (c) => {
     .run();
   if (!res.meta.changes) return c.json({ error: 'Unknown device' }, 404);
   return c.json({ bonusMinutesToday: 0 });
+});
+
+// ---------- dashboard: block a device for the rest of the day ----------
+// inMinutes = 0 blocks immediately; > 0 starts a wind-down: the kid sees a
+// countdown ("10 minutes of YouTube left today"), then the device blocks
+// until midnight in the family timezone. DELETE lifts it.
+
+app.post('/dashboard/devices/:id/block', async (c) => {
+  const body = await c.req.json<{ inMinutes?: number }>().catch(() => ({}) as { inMinutes?: number });
+  const inMinutes = Number(body.inMinutes ?? 0);
+  if (!Number.isFinite(inMinutes) || inMinutes < 0 || inMinutes > 12 * 60) {
+    return c.json({ error: 'inMinutes must be between 0 and 720' }, 400);
+  }
+  const blockAt = now() + Math.round(inMinutes) * 60_000;
+  const res = await c.env.DB.prepare(
+    'UPDATE devices SET block_at = ? WHERE id = ? AND family_id = ? AND revoked = 0',
+  )
+    .bind(blockAt, c.req.param('id'), c.get('familyId'))
+    .run();
+  if (!res.meta.changes) return c.json({ error: 'Unknown device' }, 404);
+  return c.json({ blockAt });
+});
+
+app.delete('/dashboard/devices/:id/block', async (c) => {
+  const res = await c.env.DB.prepare('UPDATE devices SET block_at = NULL WHERE id = ? AND family_id = ?')
+    .bind(c.req.param('id'), c.get('familyId'))
+    .run();
+  if (!res.meta.changes) return c.json({ error: 'Unknown device' }, 404);
+  return c.json({ blockAt: null });
 });
 
 app.get('/dashboard/screen-time', async (c) =>

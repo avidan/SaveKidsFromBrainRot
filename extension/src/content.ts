@@ -779,11 +779,20 @@ function startHeartbeat(): void {
         if (!timeUp) {
           timeUp = true;
           holdPlayback();
-          showOverlay({
-            icon: 'time',
-            title: "That's all for today!",
-            message: 'Your YouTube time is used up. It resets tomorrow — go build something cool!',
-          });
+          const parentBlocked = resp.blockAt !== null && resp.blockAt !== undefined && resp.blockAt <= Date.now();
+          showOverlay(
+            parentBlocked
+              ? {
+                  icon: 'time',
+                  title: 'YouTube is done for today',
+                  message: 'A grown-up turned YouTube off for the rest of the day. See you tomorrow!',
+                }
+              : {
+                  icon: 'time',
+                  title: "That's all for today!",
+                  message: 'Your YouTube time is used up. It resets tomorrow — go build something cool!',
+                },
+          );
         }
       } else {
         // Time came back: the parent granted more minutes (or raised the
@@ -794,13 +803,13 @@ function startHeartbeat(): void {
           releasePlayback();
           onNavigate();
         }
+        // The chip shows during a parent wind-down countdown no matter what,
+        // and otherwise when remaining time dips under the warning threshold.
+        const windDown = resp.blockAt !== null && resp.blockAt !== undefined && resp.blockAt > Date.now();
         const warnMinutes = resp.timeWarningMinutes ?? null;
-        if (
-          !IS_EMBED &&
-          warnMinutes !== null &&
-          resp.remainingSeconds !== null &&
-          resp.remainingSeconds <= warnMinutes * 60
-        ) {
+        const underWarning =
+          warnMinutes !== null && resp.remainingSeconds !== null && resp.remainingSeconds <= warnMinutes * 60;
+        if (!IS_EMBED && resp.remainingSeconds !== null && (windDown || underWarning)) {
           showTimeChip(resp.remainingSeconds);
         } else {
           removeTimeChip();

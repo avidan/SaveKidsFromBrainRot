@@ -5,6 +5,7 @@ import {
   Card,
   Grid,
   Group,
+  Menu,
   NumberInput,
   Stack,
   Switch,
@@ -12,7 +13,14 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconCircleCheck, IconClockPlus, IconHourglassLow } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconChevronDown,
+  IconCircleCheck,
+  IconClockPlus,
+  IconHandStop,
+  IconHourglassLow,
+} from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import type { DeviceInfo, ScreenTimeEntry, Settings } from '../../../shared/types';
 import { DEFAULT_SETTINGS } from '../../../shared/types';
@@ -114,6 +122,40 @@ export default function TimePage() {
     }
   };
 
+  const block = async (device: DeviceInfo, inMinutes: number) => {
+    setBusyDevice(device.id);
+    setGrantMsg(null);
+    try {
+      const { blockAt } = await api.blockDevice(device.id, inMinutes);
+      setDevices((ds) => ds.map((d) => (d.id === device.id ? { ...d, blockAt } : d)));
+      setGrantMsg({
+        text:
+          inMinutes === 0
+            ? `${device.name} is blocked for the rest of the day. It takes effect within a minute.`
+            : `${device.name} gets a ${inMinutes}-minute countdown, then YouTube blocks for the rest of the day.`,
+        kind: 'ok',
+      });
+    } catch (e) {
+      setGrantMsg({ text: e instanceof Error ? e.message : 'Could not block the device', kind: 'error' });
+    } finally {
+      setBusyDevice(null);
+    }
+  };
+
+  const unblock = async (device: DeviceInfo) => {
+    setBusyDevice(device.id);
+    setGrantMsg(null);
+    try {
+      await api.unblockDevice(device.id);
+      setDevices((ds) => ds.map((d) => (d.id === device.id ? { ...d, blockAt: null } : d)));
+      setGrantMsg({ text: `${device.name} is unblocked.`, kind: 'ok' });
+    } catch (e) {
+      setGrantMsg({ text: e instanceof Error ? e.message : 'Could not unblock the device', kind: 'error' });
+    } finally {
+      setBusyDevice(null);
+    }
+  };
+
   const baseLimitToday =
     activeMode === 'weekend'
       ? settings.weekendDailyLimitMinutes ?? settings.dailyLimitMinutes
@@ -207,9 +249,10 @@ export default function TimePage() {
           <div>
             <Title order={4}>Today, per device</Title>
             <Text size="sm" c="dimmed">
-              Give one device extra time for today — for finishing a video, or as a reward — without
-              changing the everyday limit. Extra time disappears at midnight. If a device is already
-              on the "time's up" screen, it unlocks within a minute of adding time.
+              Give one device extra time for today — or wind it down: a visible countdown
+              ("10 minutes left"), then YouTube blocks until midnight. "Block today" skips the
+              countdown. Devices react within a minute; everything here resets at midnight and
+              never changes the everyday limit.
             </Text>
           </div>
           {devices.length === 0 ? (
@@ -223,19 +266,35 @@ export default function TimePage() {
                   <Table.Th>Device</Table.Th>
                   <Table.Th>Watched today</Table.Th>
                   <Table.Th>Limit today</Table.Th>
-                  <Table.Th>Give more time</Table.Th>
+                  <Table.Th>More time / block</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {devices.map((d) => {
                   const bonus = d.bonusMinutesToday ?? 0;
                   const used = usedMinutes(d.name);
+                  const blockPending = d.blockAt != null && d.blockAt > Date.now();
+                  const blockedNow = d.blockAt != null && d.blockAt <= Date.now();
                   return (
                     <Table.Tr key={d.id}>
                       <Table.Td>
                         <Text fw={600} size="sm">
                           {d.name}
                         </Text>
+                        {blockedNow && (
+                          <Badge size="sm" color="red" variant="light" mt={4}>
+                            Blocked today
+                          </Badge>
+                        )}
+                        {blockPending && (
+                          <Text size="xs" c="orange.8" fw={700} mt={4}>
+                            Blocks at{' '}
+                            {new Date(d.blockAt as number).toLocaleTimeString([], {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                        )}
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm">{used === null ? '—' : fmtMinutes(used)}</Text>
@@ -257,49 +316,96 @@ export default function TimePage() {
                         )}
                       </Table.Td>
                       <Table.Td>
-                        <Group gap={6} wrap="wrap">
-                          {[15, 30, 60].map((m) => (
-                            <Button
-                              key={m}
-                              size="compact-sm"
-                              variant="light"
-                              loading={busyDevice === d.id}
-                              onClick={() => void extend(d, m)}
-                            >
-                              +{m}m
-                            </Button>
-                          ))}
-                          <NumberInput
-                            size="xs"
-                            w={80}
-                            min={1}
-                            max={720}
-                            placeholder="min"
-                            onChange={(v) => (customMinutes.current[d.id] = Number(v) || 0)}
-                          />
-                          <Button
-                            size="compact-sm"
-                            variant="default"
-                            loading={busyDevice === d.id}
-                            onClick={() => {
-                              const m = customMinutes.current[d.id];
-                              if (m && m > 0) void extend(d, m);
-                            }}
-                          >
-                            Add
-                          </Button>
-                          {bonus > 0 && (
+                        <Stack gap={6}>
+                          <Group gap={6} wrap="wrap">
+                            {[15, 30, 60].map((m) => (
+                              <Button
+                                key={m}
+                                size="compact-sm"
+                                variant="light"
+                                loading={busyDevice === d.id}
+                                onClick={() => void extend(d, m)}
+                              >
+                                +{m}m
+                              </Button>
+                            ))}
+                            <NumberInput
+                              size="xs"
+                              w={80}
+                              min={1}
+                              max={720}
+                              placeholder="min"
+                              onChange={(v) => (customMinutes.current[d.id] = Number(v) || 0)}
+                            />
                             <Button
                               size="compact-sm"
-                              variant="subtle"
-                              color="red"
+                              variant="default"
                               loading={busyDevice === d.id}
-                              onClick={() => void clearBonus(d)}
+                              onClick={() => {
+                                const m = customMinutes.current[d.id];
+                                if (m && m > 0) void extend(d, m);
+                              }}
                             >
-                              Undo
+                              Add
                             </Button>
-                          )}
-                        </Group>
+                            {bonus > 0 && (
+                              <Button
+                                size="compact-sm"
+                                variant="subtle"
+                                color="red"
+                                loading={busyDevice === d.id}
+                                onClick={() => void clearBonus(d)}
+                              >
+                                Undo
+                              </Button>
+                            )}
+                          </Group>
+                          <Group gap={6} wrap="wrap">
+                            {blockedNow || blockPending ? (
+                              <Button
+                                size="compact-sm"
+                                variant="light"
+                                color="teal"
+                                loading={busyDevice === d.id}
+                                onClick={() => void unblock(d)}
+                              >
+                                Unblock
+                              </Button>
+                            ) : (
+                              <>
+                                <Menu shadow="md" position="bottom-start">
+                                  <Menu.Target>
+                                    <Button
+                                      size="compact-sm"
+                                      variant="default"
+                                      loading={busyDevice === d.id}
+                                      rightSection={<IconChevronDown size={13} />}
+                                    >
+                                      Wind down
+                                    </Button>
+                                  </Menu.Target>
+                                  <Menu.Dropdown>
+                                    {[5, 10, 15, 30].map((m) => (
+                                      <Menu.Item key={m} onClick={() => void block(d, m)}>
+                                        {m} more minutes, then block
+                                      </Menu.Item>
+                                    ))}
+                                  </Menu.Dropdown>
+                                </Menu>
+                                <Button
+                                  size="compact-sm"
+                                  variant="light"
+                                  color="red"
+                                  leftSection={<IconHandStop size={14} />}
+                                  loading={busyDevice === d.id}
+                                  onClick={() => void block(d, 0)}
+                                >
+                                  Block today
+                                </Button>
+                              </>
+                            )}
+                          </Group>
+                        </Stack>
                       </Table.Td>
                     </Table.Tr>
                   );
@@ -317,8 +423,8 @@ export default function TimePage() {
           )}
           {baseLimitToday === null && devices.length > 0 && (
             <Alert color="yellow" icon={<IconHourglassLow size={16} />}>
-              No daily limit is set, so extra time has nothing to add to. Set a limit above to use
-              per-device time controls.
+              No daily limit is set, so "+minutes" grants have nothing to add to (wind-down and
+              Block today still work). Set a limit above to use the full per-device controls.
             </Alert>
           )}
         </Stack>

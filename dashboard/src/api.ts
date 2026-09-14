@@ -118,6 +118,14 @@ export const api = {
     }),
   clearDeviceBonus: (id: string) =>
     request<{ bonusMinutesToday: number }>(`/dashboard/devices/${id}/extend`, { method: 'DELETE' }),
+  /** inMinutes = 0 blocks now; > 0 runs a visible countdown first. */
+  blockDevice: (id: string, inMinutes: number) =>
+    request<{ blockAt: number }>(`/dashboard/devices/${id}/block`, {
+      method: 'POST',
+      body: JSON.stringify({ inMinutes }),
+    }),
+  unblockDevice: (id: string) =>
+    request<{ blockAt: null }>(`/dashboard/devices/${id}/block`, { method: 'DELETE' }),
 
   getReview: () => request<{ items: ReviewItem[] }>('/dashboard/review'),
   resolveReview: (id: number, action: 'allow' | 'block' | 'dismiss') =>

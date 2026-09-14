@@ -343,17 +343,16 @@ async function heartbeat(playing: boolean): Promise<HeartbeatResponse> {
   const distractions = policy?.settings.distractions;
   const quietFiltering = policy?.settings.quietFiltering ?? true;
   const timeWarningMinutes = policy?.settings.timeWarningMinutes ?? null;
-  if (limitMinutes === null) {
-    return { remainingSeconds: null, pausedUntil, activeMode, distractions, quietFiltering, timeWarningMinutes };
+  // A parent block ("done for today" / wind-down countdown) caps remaining
+  // time even when no daily limit is configured.
+  const blockAt = policy?.deviceBlockAt ?? null;
+  const limitRemaining = limitMinutes === null ? null : Math.max(0, limitMinutes * 60 - usage.seconds);
+  let remainingSeconds = limitRemaining;
+  if (blockAt !== null) {
+    const untilBlock = Math.max(0, Math.ceil((blockAt - nowMs) / 1000));
+    remainingSeconds = remainingSeconds === null ? untilBlock : Math.min(remainingSeconds, untilBlock);
   }
-  return {
-    remainingSeconds: Math.max(0, limitMinutes * 60 - usage.seconds),
-    pausedUntil,
-    activeMode,
-    distractions,
-    quietFiltering,
-    timeWarningMinutes,
-  };
+  return { remainingSeconds, pausedUntil, activeMode, distractions, quietFiltering, timeWarningMinutes, blockAt };
 }
 
 // ---------- pairing ----------
