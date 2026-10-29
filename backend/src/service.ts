@@ -9,6 +9,7 @@ import type {
   Policy,
   ReviewItem,
   ScreenTimeEntry,
+  SiteVisitEntry,
   Settings,
   TestResponse,
   Verdict,
@@ -195,6 +196,31 @@ export async function screenTimeToday(env: Env, familyId: string): Promise<Scree
     }
   }
   return Object.entries(byDevice).map(([deviceName, secondsToday]) => ({ deviceName, secondsToday }));
+}
+
+/**
+ * Sites visited over the last N days, aggregated per hostname from the
+ * extension's batched site_visit events (hostname-only by design).
+ */
+export async function sitesReport(env: Env, familyId: string, days: number): Promise<SiteVisitEntry[]> {
+  const since = Date.now() - Math.max(1, Math.min(90, days)) * 24 * 60 * 60 * 1000;
+  const rows = await env.DB.prepare(
+    `SELECT e.target_id AS host,
+            SUM(COALESCE(json_extract(e.detail_json, '$.count'), 1)) AS visits,
+            MAX(e.created_at) AS last_at,
+            GROUP_CONCAT(DISTINCT d.name) AS device_names
+     FROM events e JOIN devices d ON d.id = e.device_id
+     WHERE e.family_id = ? AND e.type = 'site_visit' AND e.created_at >= ?
+     GROUP BY e.target_id ORDER BY visits DESC LIMIT 200`,
+  )
+    .bind(familyId, since)
+    .all<{ host: string; visits: number; last_at: number; device_names: string }>();
+  return rows.results.map((r) => ({
+    host: r.host,
+    visits: Number(r.visits),
+    lastAt: r.last_at,
+    deviceNames: r.device_names ?? '',
+  }));
 }
 
 export async function listDevices(env: Env, familyId: string) {

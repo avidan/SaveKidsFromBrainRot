@@ -54,6 +54,17 @@ all import it; change shapes there first.
   `deviceBonusMinutes` (device-authed route, so it can carry device-scoped
   data). Extension counts usage locally, adds the bonus to the limit, and
   un-latches the "time's up" overlay when remaining time recovers.
+- **Site-visit reporting** (groundwork for site-level control): the extension
+  listens to `tabs.onUpdated` (requires the `tabs` permission — Chrome warns
+  "Read your browsing history"; force-installs auto-accept, manual store
+  installs get disabled pending re-approval), aggregates visits per HOSTNAME
+  only (never full URLs — deliberate privacy floor), and batch-posts
+  `site_visit` events (detail `{count}`) on the 5-min alarm or at 25 distinct
+  hosts. `service.sitesReport()` aggregates them; surfaced on the Activity
+  tab ("Sites visited") and `/dashboard/sites` + `/api/v1/sites`. Safari
+  hides tab URLs without per-site grants, so the Safari build quietly
+  reports nothing. Store listing + privacy.html disclose the collection —
+  keep them in sync if the scope ever changes.
 - **Cache-invalidation contract**: `policies.updated_at` bump ⇒ extensions drop
   local verdict caches on next sync. Bump it when verdict-relevant things
   change (criteria, overrides); do NOT bump for pause or mode flips.

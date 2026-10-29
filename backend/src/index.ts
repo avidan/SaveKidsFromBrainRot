@@ -669,7 +669,7 @@ app.post('/events', async (c) => {
     )
       .bind(familyId, deviceId, e.type, e.targetKind ?? null, e.targetId ?? null, e.title ?? null, JSON.stringify(e.detail ?? {}), now())
       .run();
-    if (e.type === 'request_access' && e.targetKind && e.targetId) {
+    if (e.type === 'request_access' && (e.targetKind === 'channel' || e.targetKind === 'video') && e.targetId) {
       const inserted = await addReviewItem(
         c.env.DB,
         familyId,
@@ -907,6 +907,11 @@ app.delete('/dashboard/devices/:id/block', async (c) => {
 
 app.get('/dashboard/screen-time', async (c) =>
   c.json({ screenTime: await service.screenTimeToday(c.env, c.get('familyId')) }));
+
+app.get('/dashboard/sites', async (c) => {
+  const days = Number(c.req.query('days') ?? 7);
+  return c.json({ sites: await service.sitesReport(c.env, c.get('familyId'), Number.isFinite(days) ? days : 7) });
+});
 
 app.post('/dashboard/devices/pair-code', async (c) => {
   const familyId = c.get('familyId');
@@ -1169,6 +1174,10 @@ app.get('/api/v1/activity', async (c) =>
   c.json({ events: await service.listActivity(c.env, c.get('familyId'), Number(c.req.query('limit') ?? 100)) }),
 );
 app.get('/api/v1/screen-time', async (c) => c.json({ screenTime: await service.screenTimeToday(c.env, c.get('familyId')) }));
+app.get('/api/v1/sites', async (c) => {
+  const days = Number(c.req.query('days') ?? 7);
+  return c.json({ sites: await service.sitesReport(c.env, c.get('familyId'), Number.isFinite(days) ? days : 7) });
+});
 app.get('/api/v1/devices', async (c) => c.json({ devices: await service.listDevices(c.env, c.get('familyId')) }));
 app.post('/api/v1/test', async (c) => {
   const { url } = await c.req.json<{ url: string }>();

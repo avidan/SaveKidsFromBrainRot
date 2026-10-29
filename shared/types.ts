@@ -209,10 +209,10 @@ export interface EvaluateVideoResponse {
   verdict: Verdict;
 }
 
-export type EventType = 'watched' | 'blocked' | 'request_access' | 'time_used';
+export type EventType = 'watched' | 'blocked' | 'request_access' | 'time_used' | 'site_visit';
 export interface EventInput {
   type: EventType;
-  targetKind?: 'channel' | 'video';
+  targetKind?: 'channel' | 'video' | 'site';
   targetId?: string;
   title?: string;
   detail?: Record<string, unknown>;
@@ -246,7 +246,7 @@ export interface ActivityEvent {
   id: number;
   deviceName: string;
   type: EventType;
-  targetKind?: 'channel' | 'video';
+  targetKind?: 'channel' | 'video' | 'site';
   targetId?: string;
   title?: string;
   detail?: Record<string, unknown>;
@@ -266,6 +266,14 @@ export interface AiKeyStatus {
   /** 'secret' = wrangler secret (wins, read-only from the dashboard); 'dashboard' = stored in D1. */
   source: 'secret' | 'dashboard' | null;
   last4: string | null;
+}
+
+/** One row of the sites-visited report (GET /dashboard/sites). */
+export interface SiteVisitEntry {
+  host: string;
+  visits: number;
+  lastAt: number; // epoch ms of the most recent report
+  deviceNames: string; // comma-separated device names that visited
 }
 
 export interface ScreenTimeEntry {

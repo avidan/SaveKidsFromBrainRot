@@ -9,6 +9,7 @@ import type {
   ReviewItem,
   ScreenTimeEntry,
   Settings,
+  SiteVisitEntry,
   TestResponse,
 } from '../../shared/types';
 
@@ -132,6 +133,7 @@ export const api = {
     request<{ ok: true }>(`/dashboard/review/${id}`, { method: 'POST', body: JSON.stringify({ action }) }),
 
   getActivity: () => request<{ events: ActivityEvent[] }>('/dashboard/activity?limit=200'),
+  getSites: (days = 7) => request<{ sites: SiteVisitEntry[] }>(`/dashboard/sites?days=${days}`),
 
   test: (url: string) => request<TestResponse>('/dashboard/test', { method: 'POST', body: JSON.stringify({ url }) }),
 

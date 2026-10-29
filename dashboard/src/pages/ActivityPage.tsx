@@ -6,6 +6,7 @@ import {
   Group,
   Select,
   Stack,
+  Table,
   Text,
   TextInput,
   ThemeIcon,
@@ -18,9 +19,10 @@ import {
   IconHandStop,
   IconPlayerPlay,
   IconSearch,
+  IconWorld,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { ActivityEvent } from '../../../shared/types';
+import type { ActivityEvent, SiteVisitEntry } from '../../../shared/types';
 import { api } from '../api';
 
 const TYPE_META: Record<ActivityEvent['type'], { label: string; color: string; icon: typeof IconPlayerPlay }> = {
@@ -28,6 +30,7 @@ const TYPE_META: Record<ActivityEvent['type'], { label: string; color: string; i
   blocked: { label: 'Blocked', color: 'red', icon: IconBan },
   request_access: { label: 'Asked for', color: 'blue', icon: IconHandStop },
   time_used: { label: 'Screen time', color: 'gray', icon: IconClock },
+  site_visit: { label: 'Visited site', color: 'grape', icon: IconWorld },
 };
 
 function fmtMinutes(seconds: number): string {
@@ -43,6 +46,28 @@ export default function ActivityPage() {
   const [type, setType] = useState('all');
   const [device, setDevice] = useState('all');
   const [sort, setSort] = useState('newest');
+
+  const [sites, setSites] = useState<SiteVisitEntry[]>([]);
+  const [sitesDays, setSitesDays] = useState('7');
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSites = async () => {
+      if (document.hidden) return;
+      try {
+        const { sites } = await api.getSites(Number(sitesDays));
+        if (!cancelled) setSites(sites);
+      } catch {
+        /* transient; next poll retries */
+      }
+    };
+    void loadSites();
+    const interval = setInterval(loadSites, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [sitesDays]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +116,7 @@ export default function ActivityPage() {
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return events
+      .filter((e) => e.type !== 'site_visit') // aggregate rows live in the Sites card below
       .filter((e) => type === 'all' || e.type === type)
       .filter((e) => device === 'all' || e.deviceName === device)
       .filter(
@@ -100,6 +126,7 @@ export default function ActivityPage() {
   }, [events, query, type, device, sort]);
 
   return (
+    <Stack gap="md">
     <Card>
       <Stack gap="sm">
         <div>
@@ -219,5 +246,72 @@ export default function ActivityPage() {
         })}
       </Stack>
     </Card>
+
+    <Card>
+      <Stack gap="sm">
+        <Group justify="space-between" wrap="wrap">
+          <div>
+            <Title order={4}>Sites visited</Title>
+            <Text size="sm" c="dimmed">
+              Every website the devices browse, counted by visit — not just YouTube. Devices
+              running extension 0.3.0+ report these; hostnames only, never full page addresses.
+            </Text>
+          </div>
+          <Select
+            w={130}
+            data={[
+              { value: '1', label: 'Today' },
+              { value: '7', label: 'Last 7 days' },
+              { value: '30', label: 'Last 30 days' },
+            ]}
+            value={sitesDays}
+            onChange={(v) => v && setSitesDays(v)}
+            allowDeselect={false}
+          />
+        </Group>
+        {sites.length === 0 ? (
+          <Text c="dimmed" ta="center" py="lg">
+            No site visits reported yet — devices start reporting once they update to
+            extension 0.3.0.
+          </Text>
+        ) : (
+          <Table verticalSpacing={6}>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Site</Table.Th>
+                <Table.Th>Visits</Table.Th>
+                <Table.Th>Devices</Table.Th>
+                <Table.Th>Last visited</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {sites.map((s) => (
+                <Table.Tr key={s.host}>
+                  <Table.Td>
+                    <Anchor size="sm" fw={500} href={`https://${s.host}`} target="_blank" rel="noreferrer">
+                      {s.host}
+                    </Anchor>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{s.visits}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" c="dimmed">
+                      {s.deviceNames.split(',').join(', ')}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm" c="dimmed">
+                      {new Date(s.lastAt).toLocaleString()}
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Stack>
+    </Card>
+    </Stack>
   );
 }

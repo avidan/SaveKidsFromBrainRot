@@ -70,23 +70,27 @@ free tier. The extension does nothing until you pair it with your own server.
 
 ## 4. Privacy tab
 
-- **Single purpose:** Filters YouTube content for children according to
-  parent-defined criteria, enforced via the family's own self-hosted server.
+- **Single purpose:** Parental controls for children's browsing: filters
+  YouTube content against parent-defined criteria and reports which sites the
+  device visits, enforced via the family's own self-hosted server.
 - **Permission justifications:**
   - `storage` — caches the family policy and content verdicts locally; reads
     managed storage so schools/parents can pre-configure devices.
   - `alarms` — periodic policy re-sync with the family's server.
+  - `tabs` — records which sites the device visits (hostname + visit count
+    only, never full URLs or page content) for the parent's activity report —
+    a core parental-control function, sent only to the family's own server.
   - `host permission https://www.youtube.com/*` — the extension's core
     function: reading video/channel info on YouTube pages and hiding content
     that fails the family's rules.
   - `host permission https://i.ytimg.com/*` — fetches video thumbnails/
     metadata used when evaluating a video.
 - **Remote code:** No.
-- **Data usage disclosures:** check **Web history** (videos watched/blocked)
-  and **User activity** (YouTube interactions) and **Website content** (video
-  titles/channels). All are transmitted only to the family's own
-  parent-operated server. Certify: data is not sold, not used for purposes
-  unrelated to the single purpose, not used for creditworthiness.
+- **Data usage disclosures:** check **Web history** (videos watched/blocked;
+  hostnames of sites visited) and **User activity** (YouTube interactions) and
+  **Website content** (video titles/channels). All are transmitted only to the
+  family's own parent-operated server. Certify: data is not sold, not used for
+  purposes unrelated to the single purpose, not used for creditworthiness.
 - **Privacy policy URL:** `https://app.rosskids.com/privacy.html`
   (served from this repo at dashboard/public/privacy.html)
 

@@ -95,6 +95,62 @@ async function postEvents(events: EventInput[]): Promise<void> {
   }
 }
 
+// ---------- site visit reporting ----------
+// Every main navigation (any site, not just YouTube) is aggregated per
+// hostname and reported in batches, so the dashboard can show which sites
+// the device visits. Deliberately hostname-only — full URLs can carry
+// search queries and document titles the report doesn't need.
+//
+// Requires the "tabs" permission (Chrome shows "Read your browsing
+// history"). On Safari the tabs API hides URLs without per-site grants, so
+// `changeInfo.url` never arrives there and this quietly reports nothing.
+
+const SITES_FLUSH_MAX = 25; // report early if many distinct hosts accumulate
+const tabLastHost = new Map<number, string>();
+
+async function recordSiteVisit(host: string): Promise<void> {
+  if (!(await get<Config>('config'))?.deviceToken) return; // not paired yet
+  const pending = (await get<Record<string, number>>('pendingSites')) ?? {};
+  pending[host] = (pending[host] ?? 0) + 1;
+  await set('pendingSites', pending);
+  if (Object.keys(pending).length >= SITES_FLUSH_MAX) void flushSiteVisits();
+}
+
+async function flushSiteVisits(): Promise<void> {
+  const pending = (await get<Record<string, number>>('pendingSites')) ?? {};
+  const entries = Object.entries(pending);
+  if (entries.length === 0) return;
+  await set('pendingSites', {});
+  await postEvents(
+    entries.map(([host, count]) => ({
+      type: 'site_visit' as const,
+      targetKind: 'site' as const,
+      targetId: host,
+      title: host,
+      detail: { count },
+    })),
+  );
+}
+
+ext.tabs?.onUpdated?.addListener((tabId, changeInfo) => {
+  if (!changeInfo.url) return;
+  let host: string;
+  try {
+    const u = new URL(changeInfo.url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return;
+    host = u.hostname.replace(/^www\./, '');
+  } catch {
+    return;
+  }
+  // Only count hostname changes, not every SPA URL mutation within a site.
+  if (tabLastHost.get(tabId) === host) return;
+  tabLastHost.set(tabId, host);
+  void recordSiteVisit(host);
+});
+ext.tabs?.onRemoved?.addListener((tabId) => {
+  tabLastHost.delete(tabId);
+});
+
 // ---------- policy sync ----------
 
 async function syncPolicy(): Promise<Policy | null> {
@@ -163,7 +219,10 @@ function schedulePolicySync(): void {
   if (ext.alarms?.create) {
     ext.alarms.create(POLICY_ALARM, { periodInMinutes: 5 });
   } else {
-    setInterval(() => void adoptManagedConfig().then(() => syncPolicy()), 5 * 60_000);
+    setInterval(() => {
+      void adoptManagedConfig().then(() => syncPolicy());
+      void flushSiteVisits();
+    }, 5 * 60_000);
   }
 }
 
@@ -179,7 +238,10 @@ ext.alarms?.onAlarm.addListener((alarm) => {
   // Re-adopt managed config first: if anything cleared local pairing on a
   // managed device, this heals it within one alarm cycle instead of waiting
   // for a Chrome restart.
-  if (alarm.name === POLICY_ALARM) void adoptManagedConfig().then(() => syncPolicy());
+  if (alarm.name === POLICY_ALARM) {
+    void adoptManagedConfig().then(() => syncPolicy());
+    void flushSiteVisits();
+  }
 });
 
 // ---------- verdict logic ----------
