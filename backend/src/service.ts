@@ -232,20 +232,51 @@ export async function listDevices(env: Env, familyId: string) {
   return rows.results.map((d) => ({ id: d.id, name: d.name, pairedAt: d.paired_at, lastSeenAt: d.last_seen_at }));
 }
 
+/** A pinned parent decision rendered as a verdict (mirrors the /evaluate/* routes). */
+function overrideVerdict(o: Override, fallbackReason: string): Verdict {
+  return {
+    decision: o.decision,
+    confidence: 1,
+    reason: o.note || fallbackReason,
+    evaluatedAt: o.createdAt,
+    source: 'override',
+  };
+}
+
 export async function testUrl(env: Env, familyId: string, url: string): Promise<TestResponse | { error: string }> {
   const parsed = parseYouTubeUrl(url ?? '');
   if (!parsed) return { error: 'Not a recognizable YouTube video or channel URL' };
   const policy = await getPolicy(env, familyId);
   const mode = effectiveMode(policy);
   const criteria = criteriaFor(policy, mode);
+  // Pinned decisions win on real devices (video pin, then channel pin), so
+  // the preview must reflect them too — otherwise it shows an AI verdict
+  // that enforcement would never use.
   if (parsed.kind === 'video') {
     const meta = await fetchVideoMetaServer(parsed.videoId);
     if (!meta) return { error: 'Could not fetch video metadata' };
+    const videoPin = policy.overrides.find((o) => o.kind === 'video' && o.targetId === meta.videoId);
+    if (videoPin) return { kind: 'video', extracted: meta, verdict: overrideVerdict(videoPin, 'Set by parent'), mode };
+    const channelPin = meta.channelId
+      ? policy.overrides.find((o) => o.kind === 'channel' && o.targetId === meta.channelId)
+      : undefined;
+    if (channelPin?.decision === 'block') {
+      return { kind: 'video', extracted: meta, verdict: overrideVerdict(channelPin, 'Channel blocked by parent'), mode };
+    }
+    if (channelPin?.decision === 'allow' && !policy.settings.checkAllowedChannels) {
+      return { kind: 'video', extracted: meta, verdict: overrideVerdict(channelPin, 'Channel allowed by parent'), mode };
+    }
     const verdict = await evaluateVideo(env, policy.settings.model, criteria, meta, null);
     return { kind: 'video', extracted: meta, verdict, mode };
   }
   const meta = await fetchChannelMetaServer(parsed.ref);
   if (!meta) return { error: 'Could not fetch channel metadata' };
+  const channelPin = policy.overrides.find(
+    (o) => o.kind === 'channel' && (o.targetId === meta.channelId || (meta.handle && o.targetId === meta.handle)),
+  );
+  if (channelPin) {
+    return { kind: 'channel', extracted: meta, verdict: overrideVerdict(channelPin, 'Set by parent'), mode };
+  }
   const verdicts: Record<string, Verdict> = await evaluateChannels(env, policy.settings.model, criteria, [meta]);
   return { kind: 'channel', extracted: meta, verdict: verdicts[meta.channelId], mode };
 }
